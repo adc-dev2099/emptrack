@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmpTrack — Dashboard</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/shell.js"></script>
+<script>
+if (!requireAuth()) throw '';
+
+buildShell({ page: 'dashboard', title: 'Dashboard' });
+
+const body = document.getElementById('page-body');
+body.innerHTML = `<div class="loader"><div class="spinner"></div> Loading…</div>`;
+
+async function loadDashboard() {
+  try {
+    const [employees, departments] = await Promise.all([
+      api.employees.getAll(),
+      api.departments.getAll(),
+    ]);
+
+    const active = employees.filter(e => e.active);
+    const inactive = employees.filter(e => !e.active);
+    const activeDepts = departments.filter(d => d.active);
+    let avgSalary = '—', avgAge = '—';
+
+    try {
+      const [sal, age] = await Promise.all([
+        api.employees.avgSalary({ active: true }),
+        api.employees.avgAge({ active: true }),
+      ]);
+      avgSalary = sal ? formatCurrency(sal) : '—';
+      avgAge = age ? Math.round(age) : '—';
+    } catch {}
+
+    // Recent 5 employees
+    const recent = [...employees].slice(-5).reverse();
+
+    // Dept employee counts
+    const deptCounts = {};
+    employees.forEach(e => {
+      if (e.departmentName) deptCounts[e.departmentName] = (deptCounts[e.departmentName] || 0) + 1;
+    });
+    const topDepts = Object.entries(deptCounts).sort((a, b) => b[1] - a[1]).slice(0, 5);
+
+    body.innerHTML = `
+      <div class="page-section">
+        <div class="stats-grid">
+          <div class="stat-card">
+            <div class="stat-icon">👤</div>
+            <div class="stat-label">Total Employees</div>
+            <div class="stat-value">${employees.length}</div>
+            <div class="stat-sub">${active.length} active · ${inactive.length} inactive</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🏠︎</div>
+            <div class="stat-label">Departments</div>
+            <div class="stat-value">${activeDepts.length}</div>
+            <div class="stat-sub">${departments.length - activeDepts.length} inactive</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">₱</div>
+            <div class="stat-label">Avg Salary</div>
+            <div class="stat-value" style="font-size:20px">${avgSalary}</div>
+            <div class="stat-sub">Active employees only</div>
+          </div>
+          <div class="stat-card">
+            <div class="stat-icon">🗓</div>
+            <div class="stat-label">Avg Age</div>
+            <div class="stat-value">${avgAge}</div>
+            <div class="stat-sub">Active employees only</div>
+          </div>
+        </div>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Recent Employees</span>
+              <button class="btn btn-ghost btn-sm" onclick="navigate('employees')">View All →</button>
+            </div>
+            <div class="table-wrap">
+              <table>
+                <thead><tr>
+                  <th>Name</th>
+                  <th>Department</th>
+                  <th>Status</th>
+                </tr></thead>
+                <tbody>
+                  ${recent.length ? recent.map(e => `
+                    <tr>
+                      <td class="td-bold">${e.fullName}</td>
+                      <td>${e.departmentName || '—'}</td>
+                      <td>${activeBadge(e.active)}</td>
+                    </tr>
+                  `).join('') : '<tr><td colspan="3" style="text-align:center;color:var(--text-muted);padding:30px">No employees yet</td></tr>'}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header">
+              <span class="card-title">Employees by Department</span>
+              <button class="btn btn-ghost btn-sm" onclick="navigate('departments')">Manage →</button>
+            </div>
+            <div class="card-body">
+              ${topDepts.length ? topDepts.map(([dept, count]) => {
+                const pct = Math.round((count / employees.length) * 100);
+                return `
+                  <div style="margin-bottom:16px">
+                    <div style="display:flex;justify-content:space-between;margin-bottom:6px">
+                      <span style="font-size:13px;color:var(--text)">${dept}</span>
+                      <span style="font-size:12px;color:var(--text-muted)">${count} <span style="color:var(--text-muted)">(${pct}%)</span></span>
+                    </div>
+                    <div style="height:6px;background:var(--bg-hover);border-radius:3px;overflow:hidden">
+                      <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,var(--accent),var(--accent-dim));border-radius:3px;transition:width 0.6s ease"></div>
+                    </div>
+                  </div>
+                `;
+              }).join('') : '<div class="empty-state"><div class="empty-state-text">No data yet</div></div>'}
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+  } catch (err) {
+    body.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+loadDashboard();
+</script>
+</body>
+</html>

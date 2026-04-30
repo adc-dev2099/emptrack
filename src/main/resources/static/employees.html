@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmpTrack — Employees</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/shell.js"></script>
+<script>
+if (!requireAuth()) throw '';
+buildShell({ page: 'employees', title: 'Employees' });
+
+// ── State ──
+let allDepartments = [];
+let currentPage = 0;
+let totalPages = 0;
+let totalElements = 0;
+let pageSize = 10;
+let searchName = '';
+let filterDept = '';
+let filterActive = '';
+let editingId = null;
+
+const body = document.getElementById('page-body');
+const actions = document.getElementById('topbar-actions');
+
+actions.innerHTML = `<button class="btn btn-primary" onclick="openAddModal()">＋ Add Employee</button>`;
+
+body.innerHTML = `
+  <div class="page-section">
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-input" id="search-input" placeholder="Search by name…" oninput="onSearch(this.value)" />
+      </div>
+      <select class="filter-select" id="dept-filter" onchange="onDeptFilter(this.value)">
+        <option value="">All Departments</option>
+      </select>
+      <select class="filter-select" onchange="onActiveFilter(this.value)">
+        <option value="">All Status</option>
+        <option value="true">Active</option>
+        <option value="false">Inactive</option>
+      </select>
+    </div>
+
+    <div class="card" id="emp-card">
+      <div class="loader"><div class="spinner"></div> Loading…</div>
+    </div>
+  </div>
+
+  <!-- Add/Edit Modal -->
+  <div class="modal-backdrop" id="emp-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="emp-modal-title">Add Employee</span>
+        <button class="modal-close" onclick="closeModal('emp-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input class="form-input" id="e-firstName" placeholder="John" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input class="form-input" id="e-lastName" placeholder="Doe" />
+          </div>
+        </div>
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">Date of Birth</label>
+            <input class="form-input" id="e-dob" type="date" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Salary (PHP)</label>
+            <input class="form-input" id="e-salary" type="number" placeholder="50000" min="0" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Department</label>
+          <select class="form-select" id="e-dept"></select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('emp-modal')">Cancel</button>
+        <button class="btn btn-primary" id="emp-save-btn" onclick="saveEmployee()">Save Employee</button>
+      </div>
+    </div>
+  </div>
+`;
+
+// ── Load departments for filters ──
+async function init() {
+  try {
+    allDepartments = await api.departments.getAll();
+    const deptFilter = document.getElementById('dept-filter');
+    const deptSelect = document.getElementById('e-dept');
+    allDepartments.filter(d => d.active).forEach(d => {
+      deptFilter.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+      deptSelect.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    });
+  } catch {}
+  loadEmployees();
+}
+
+// ── Load employees (paginated) ──
+async function loadEmployees() {
+  const card = document.getElementById('emp-card');
+  card.innerHTML = `<div class="loader"><div class="spinner"></div> Loading…</div>`;
+  try {
+    const params = { page: currentPage, size: pageSize };
+    if (searchName) params.name = searchName;
+    if (filterDept) params.departmentId = filterDept;
+    if (filterActive !== '') params.active = filterActive;
+
+    const data = await api.employees.searchFilter(params);
+    totalPages = data.totalPages;
+    totalElements = data.totalElements;
+    const employees = data.content || [];
+
+    if (!employees.length) {
+      card.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◉</div><div class="empty-state-text">No employees found</div></div>`;
+      return;
+    }
+
+    let tableHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead><tr>
+            <th>Emp ID</th>
+            <th>Name</th>
+            <th>Age</th>
+            <th>Department</th>
+            <th>Salary</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr></thead>
+          <tbody>
+            ${employees.map(e => `
+              <tr>
+                <td><span class="id-chip">#${e.employeeId}</span></td>
+                <td class="td-bold">${e.fullName}</td>
+                <td>${e.age ?? '—'}</td>
+                <td>${e.departmentName || '—'}</td>
+                <td>${formatCurrency(e.salary)}</td>
+                <td>${activeBadge(e.active)}</td>
+                <td>
+                  <div class="action-cell">
+                    <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openEditModal(${e.id})">✎</button>
+                    ${e.active
+                      ? `<button class="btn btn-danger btn-sm btn-icon" title="Deactivate" onclick="confirmDeactivate(${e.id},'${e.fullName}')">⊗</button>`
+                      : `<button class="btn btn-success btn-sm btn-icon" title="Activate" onclick="activateEmp(${e.id})">✓</button>`
+                    }
+                  </div>
+                </td>
+              </tr>
+            `).join('')}
+          </tbody>
+        </table>
+      </div>
+      <div class="pagination">
+        <span class="pagination-info">Showing ${currentPage * pageSize + 1}–${Math.min((currentPage + 1) * pageSize, totalElements)} of ${totalElements}</span>
+        <div class="pagination-controls" id="pag-controls"></div>
+      </div>
+    `;
+    card.innerHTML = tableHTML;
+    buildPagination(document.getElementById('pag-controls'), currentPage, totalPages, goPage);
+  } catch (err) {
+    card.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+let searchTimer;
+function onSearch(v) { searchName = v; currentPage = 0; clearTimeout(searchTimer); searchTimer = setTimeout(loadEmployees, 350); }
+function onDeptFilter(v) { filterDept = v; currentPage = 0; loadEmployees(); }
+function onActiveFilter(v) { filterActive = v; currentPage = 0; loadEmployees(); }
+function goPage(p) { currentPage = p; loadEmployees(); }
+
+// ── Add Modal ──
+function openAddModal() {
+  editingId = null;
+  document.getElementById('emp-modal-title').textContent = 'Add Employee';
+  document.getElementById('emp-save-btn').textContent = 'Save Employee';
+  ['e-firstName','e-lastName','e-dob','e-salary'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('e-dept').selectedIndex = 0;
+  openModal('emp-modal');
+}
+
+async function openEditModal(id) {
+  try {
+    const e = await api.employees.getById(id);
+    editingId = id;
+    document.getElementById('emp-modal-title').textContent = 'Edit Employee';
+    document.getElementById('emp-save-btn').textContent = 'Update Employee';
+    document.getElementById('e-firstName').value = e.firstName;
+    document.getElementById('e-lastName').value = e.lastName;
+    document.getElementById('e-dob').value = e.dateOfBirth || '';
+    document.getElementById('e-salary').value = e.salary || '';
+    // Set department
+    const deptSel = document.getElementById('e-dept');
+    const matchDept = allDepartments.find(d => d.name === e.departmentName);
+    if (matchDept) deptSel.value = matchDept.id;
+    openModal('emp-modal');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function saveEmployee() {
+  const btn = document.getElementById('emp-save-btn');
+  const payload = {
+    firstName: document.getElementById('e-firstName').value.trim(),
+    lastName: document.getElementById('e-lastName').value.trim(),
+    dateOfBirth: document.getElementById('e-dob').value,
+    departmentId: parseInt(document.getElementById('e-dept').value),
+    salary: parseFloat(document.getElementById('e-salary').value),
+  };
+  if (!payload.firstName || !payload.lastName || !payload.dateOfBirth || !payload.departmentId || isNaN(payload.salary)) {
+    showToast('Please fill in all fields', 'error'); return;
+  }
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    if (editingId) {
+      await api.employees.update(editingId, payload);
+      showToast('Employee updated', 'success');
+    } else {
+      await api.employees.create(payload);
+      showToast('Employee added', 'success');
+    }
+    closeModal('emp-modal');
+    loadEmployees();
+  } catch (err) { showToast(err.message, 'error'); }
+  btn.textContent = editingId ? 'Update Employee' : 'Save Employee';
+  btn.disabled = false;
+}
+
+function confirmDeactivate(id, name) {
+  showConfirm('Deactivate Employee', name, () => deactivateEmp(id));
+}
+
+async function deactivateEmp(id) {
+  try { await api.employees.delete(id); showToast('Employee deactivated', 'success'); loadEmployees(); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+
+async function activateEmp(id) {
+  try { await api.employees.activate(id); showToast('Employee activated', 'success'); loadEmployees(); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+
+init();
+</script>
+</body>
+</html>

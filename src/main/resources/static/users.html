@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmpTrack — Users</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/shell.js"></script>
+<script>
+if (!requireAuth()) throw '';
+if (!api.isAdmin()) { window.location.href = 'index.html'; throw ''; }
+buildShell({ page: 'users', title: 'User Management' });
+
+let editingId = null;
+let allUsers = [];
+
+const body = document.getElementById('page-body');
+const actions = document.getElementById('topbar-actions');
+
+actions.innerHTML = `<button class="btn btn-primary" onclick="openAddModal()">＋ Add User</button>`;
+
+body.innerHTML = `
+  <div class="page-section">
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-input" id="search-input" placeholder="Search by username…" oninput="onSearch(this.value)" />
+      </div>
+      <select class="filter-select" onchange="onRoleFilter(this.value)">
+        <option value="">All Roles</option>
+        <option value="ADMIN">Admin</option>
+        <option value="USER">User</option>
+      </select>
+    </div>
+
+    <div class="card" id="user-card">
+      <div class="loader"><div class="spinner"></div> Loading…</div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="user-modal">
+    <div class="modal">
+      <div class="modal-header">
+        <span class="modal-title" id="user-modal-title">Add User</span>
+        <button class="modal-close" onclick="closeModal('user-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-grid">
+          <div class="form-group">
+            <label class="form-label">First Name</label>
+            <input class="form-input" id="u-firstName" placeholder="Jane" />
+          </div>
+          <div class="form-group">
+            <label class="form-label">Last Name</label>
+            <input class="form-input" id="u-lastName" placeholder="Smith" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Username</label>
+          <input class="form-input" id="u-username" placeholder="jsmith" />
+        </div>
+        <div class="form-group" id="pw-group">
+          <label class="form-label">Password</label>
+          <input class="form-input" id="u-password" type="password" placeholder="••••••••" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Role</label>
+          <select class="form-select" id="u-role">
+            <option value="USER">User</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('user-modal')">Cancel</button>
+        <button class="btn btn-primary" id="user-save-btn" onclick="saveUser()">Save User</button>
+      </div>
+    </div>
+  </div>
+`;
+
+let searchVal = '';
+let roleFilter = '';
+
+async function loadUsers(search, role) {
+  const card = document.getElementById('user-card');
+  card.innerHTML = `<div class="loader"><div class="spinner"></div> Loading…</div>`;
+  try {
+    const params = {};
+    if (search) params.username = search;
+    if (role) params.role = role;
+    allUsers = await api.users.searchFilter(params);
+    renderTable();
+  } catch (err) {
+    card.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+function renderTable() {
+  const card = document.getElementById('user-card');
+  const data = allUsers;
+  if (!data.length) {
+    card.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◎</div><div class="empty-state-text">No users found</div></div>`;
+    return;
+  }
+  card.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(u => `
+            <tr>
+              <td><span class="id-chip">${u.id}</span></td>
+              <td class="td-bold">${u.fullName || '—'}</td>
+              <td>${u.username}</td>
+              <td>${roleBadge(u.role)}</td>
+              <td>${activeBadge(u.active)}</td>
+              <td>
+                <div class="action-cell">
+                  <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openEditModal(${u.id})">✎</button>
+                  ${u.active
+                    ? `<button class="btn btn-danger btn-sm btn-icon" title="Deactivate" onclick="confirmDeactivate(${u.id},'${u.username}')">⊗</button>`
+                    : `<button class="btn btn-success btn-sm btn-icon" title="Activate" onclick="activateUser(${u.id})">✓</button>`
+                  }
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)">${data.length} user${data.length !== 1 ? 's' : ''}</div>
+  `;
+}
+
+let searchTimer;
+function onSearch(v) { searchVal = v; clearTimeout(searchTimer); searchTimer = setTimeout(() => loadUsers(searchVal, roleFilter), 350); }
+function onRoleFilter(v) { roleFilter = v; loadUsers(searchVal, roleFilter); }
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('user-modal-title').textContent = 'Add User';
+  document.getElementById('user-save-btn').textContent = 'Save User';
+  document.getElementById('pw-group').style.display = '';
+  ['u-firstName','u-lastName','u-username','u-password'].forEach(id => document.getElementById(id).value = '');
+  document.getElementById('u-role').value = 'USER';
+  openModal('user-modal');
+}
+
+async function openEditModal(id) {
+  try {
+    const u = await api.users.getById(id);
+    editingId = id;
+    document.getElementById('user-modal-title').textContent = 'Edit User';
+    document.getElementById('user-save-btn').textContent = 'Update User';
+    document.getElementById('pw-group').style.display = 'none'; // don't show pw on edit
+    document.getElementById('u-firstName').value = u.firstName;
+    document.getElementById('u-lastName').value = u.lastName;
+    document.getElementById('u-username').value = u.username;
+    document.getElementById('u-password').value = '';
+    document.getElementById('u-role').value = (u.role || '').replace('ROLE_', '');
+    openModal('user-modal');
+  } catch (err) { showToast(err.message, 'error'); }
+}
+
+async function saveUser() {
+  const btn = document.getElementById('user-save-btn');
+  const payload = {
+    firstName: document.getElementById('u-firstName').value.trim(),
+    lastName: document.getElementById('u-lastName').value.trim(),
+    username: document.getElementById('u-username').value.trim(),
+    role: document.getElementById('u-role').value,
+  };
+  if (!editingId) {
+    payload.password = document.getElementById('u-password').value;
+    if (!payload.password) { showToast('Password is required', 'error'); return; }
+  }
+  if (!payload.firstName || !payload.lastName || !payload.username) {
+    showToast('Please fill in all required fields', 'error'); return;
+  }
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    if (editingId) {
+      await api.users.update(editingId, payload);
+      showToast('User updated', 'success');
+    } else {
+      await api.users.create(payload);
+      showToast('User created', 'success');
+    }
+    closeModal('user-modal');
+    loadUsers(searchVal, roleFilter);
+  } catch (err) { showToast(err.message, 'error'); }
+  btn.textContent = editingId ? 'Update User' : 'Save User';
+  btn.disabled = false;
+}
+
+function confirmDeactivate(id, name) {
+  showConfirm('Deactivate User', name, () => deactivateUser(id));
+}
+
+async function deactivateUser(id) {
+  try { await api.users.delete(id); showToast('User deactivated', 'success'); loadUsers(searchVal, roleFilter); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+
+async function activateUser(id) {
+  try { await api.users.activate(id); showToast('User activated', 'success'); loadUsers(searchVal, roleFilter); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+
+loadUsers();
+</script>
+</body>
+</html>

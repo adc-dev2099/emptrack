@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmpTrack — Login</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <link rel="stylesheet" href="css/login.css" />
+</head>
+<body>
+<div class="login-page">
+  <div class="login-bg"></div>
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="login-logo-icon">💼</div>
+      <div>
+        <div class="login-logo-text">EmpTrack</div>
+        <div class="login-logo-sub">Employee Managament System</div>
+      </div>
+    </div>
+
+    <div class="login-heading">Welcome back</div>
+    <div class="login-sub">Sign in to your account to continue</div>
+
+    <div id="login-error" class="login-error hidden"></div>
+
+    <div class="login-form">
+      <div class="form-group">
+        <label class="form-label">Username</label>
+        <input class="form-input" id="username" type="text" placeholder="Enter your username" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Password</label>
+        <input class="form-input" id="password" type="password" placeholder="Enter your password" autocomplete="current-password" />
+      </div>
+      <button class="btn btn-primary login-btn" id="login-btn" onclick="doLogin()">
+        Sign In
+      </button>
+    </div>
+
+    <div style="margin-top:28px;padding-top:20px;border-top:1px solid var(--border)">
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:1px">Quick Access</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn btn-ghost btn-sm" onclick="fillCreds('admin','admin123')">Admin Demo</button>
+<!--        <button class="btn btn-ghost btn-sm" onclick="fillCreds('user1','admin123')">User Demo</button>-->
+<!--        <button class="btn btn-ghost btn-sm" onclick="seedData()">⚙ Seed DB</button>-->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="js/api.js"></script>
+<script>
+  // Redirect if already logged in
+  if (api.isLoggedIn()) window.location.href = 'index.html';
+
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') doLogin();
+  });
+
+  async function doLogin() {
+    const username = document.getElementById('username').value.trim();
+    const password = document.getElementById('password').value.trim();
+    const errEl = document.getElementById('login-error');
+    const btn = document.getElementById('login-btn');
+
+    errEl.classList.add('hidden');
+    if (!username || !password) {
+      errEl.textContent = 'Please enter both username and password.';
+      errEl.classList.remove('hidden');
+      return;
+    }
+
+    btn.textContent = 'Signing in…';
+    btn.disabled = true;
+
+    try {
+      const data = await api.login(username, password);
+      // Store username for display
+      localStorage.setItem('et_username', username);
+      window.location.href = 'index.html';
+    } catch (err) {
+      errEl.textContent = err.message || 'Invalid credentials. Please try again.';
+      errEl.classList.remove('hidden');
+      btn.textContent = 'Sign In';
+      btn.disabled = false;
+    }
+  }
+
+  function fillCreds(u, p) {
+    document.getElementById('username').value = u;
+    document.getElementById('password').value = p;
+  }
+
+  async function seedData() {
+    try {
+      await fetch('http://localhost:8080/dev/seed', { method: 'POST' });
+      const errEl = document.getElementById('login-error');
+      errEl.style.borderColor = 'rgba(82,214,138,0.3)';
+      errEl.style.background = 'rgba(82,214,138,0.08)';
+      errEl.style.color = 'var(--green)';
+      errEl.textContent = '✓ Database seeded! Try admin / admin123';
+      errEl.classList.remove('hidden');
+    } catch(e) {
+      alert('Could not reach server. Make sure your Spring Boot app is running.');
+    }
+  }
+</script>
+</body>
+</html>

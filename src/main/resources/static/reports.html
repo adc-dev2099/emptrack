@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmpTrack — Reports</title>
+  <link rel="stylesheet" href="css/main.css" />
+  <style>
+    /* ── Tab Bar ── */
+    .tab-bar {
+      display: flex;
+      gap: 2px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      background: var(--bg-panel);
+      border-radius: var(--radius) var(--radius) 0 0;
+      padding: 6px 6px 0;
+      overflow-x: auto;
+    }
+
+    .tab-btn {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 10px 18px;
+      border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+      border: 1px solid transparent;
+      border-bottom: none;
+      background: transparent;
+      color: var(--text-dim);
+      font-family: 'DM Mono', monospace;
+      font-size: 12px;
+      letter-spacing: 0.4px;
+      cursor: pointer;
+      transition: var(--transition);
+      white-space: nowrap;
+      position: relative;
+      bottom: -1px;
+    }
+
+    .tab-btn:hover { background: var(--bg-hover); color: var(--text); }
+
+    .tab-btn.active {
+      background: var(--bg-card);
+      color: var(--accent);
+      border-color: var(--border);
+      border-bottom-color: var(--bg-card);
+    }
+
+    .tab-icon { font-size: 14px; }
+
+    /* ── Tab Panels ── */
+    .tab-panel { display: none; animation: fadeUp 0.25s ease; }
+    .tab-panel.active { display: block; }
+
+    /* ── Report Card ── */
+    .report-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 0 var(--radius) var(--radius) var(--radius);
+    }
+
+    /* ── Filter Bar ── */
+    .filter-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+
+    .filter-bar-title {
+      font-family: 'Syne', sans-serif;
+      font-weight: 700;
+      font-size: 14px;
+      color: var(--text);
+      flex: 1;
+      min-width: 120px;
+    }
+
+    /* ── Export strip ── */
+    .export-strip {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 20px;
+      border-top: 1px solid var(--border);
+      background: var(--bg-panel);
+      border-radius: 0 0 var(--radius) var(--radius);
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .export-label { font-size: 11px; color: var(--text-muted); letter-spacing: 0.5px; }
+
+    .export-btns { display: flex; gap: 8px; }
+
+    .btn-export {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
+      font-family: 'DM Mono', monospace;
+      font-size: 11px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: var(--transition);
+      border: 1px solid;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-export-pdf {
+      background: rgba(255,107,107,0.08);
+      color: #ff8585;
+      border-color: rgba(255,107,107,0.25);
+    }
+    .btn-export-pdf:hover { background: rgba(255,107,107,0.15); box-shadow: 0 0 10px rgba(255,107,107,0.15); }
+
+    .btn-export-csv {
+      background: rgba(82,214,138,0.08);
+      color: var(--green);
+      border-color: rgba(82,214,138,0.25);
+    }
+    .btn-export-csv:hover { background: rgba(82,214,138,0.15); }
+
+    /* ── Stats Tab ── */
+    .stats-big-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 16px;
+      padding: 22px;
+    }
+
+    .stats-big-card {
+      background: var(--bg-panel);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+      text-align: center;
+      transition: var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .stats-big-card::before {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+    }
+
+    .stats-big-card:hover { border-color: var(--border-bright); transform: translateY(-2px); }
+
+    .sbc-icon { font-size: 28px; margin-bottom: 10px; opacity: 0.6; }
+    .sbc-label { font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text-muted); margin-bottom: 10px; }
+    .sbc-value { font-family: 'Syne', sans-serif; font-size: 32px; font-weight: 800; color: var(--text); line-height: 1; }
+    .sbc-sub { font-size: 11px; color: var(--text-dim); margin-top: 6px; }
+
+    .dept-stats-section { padding: 22px; }
+
+    .dept-stat-row {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .dept-stat-row:last-child { border-bottom: none; }
+
+    .dept-stat-name {
+      flex: 1;
+      font-size: 13px;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .dept-stat-bar-wrap {
+      flex: 2;
+      height: 8px;
+      background: var(--bg-hover);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .dept-stat-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      border-radius: 4px;
+      transition: width 0.8s cubic-bezier(.4,0,.2,1);
+    }
+
+    .dept-stat-nums {
+      text-align: right;
+      min-width: 110px;
+    }
+
+    .dept-stat-count { font-size: 13px; color: var(--text); font-weight: 600; }
+    .dept-stat-avg { font-size: 11px; color: var(--text-muted); }
+
+    /* ── Age distribution bars ── */
+    .age-chart { padding: 22px; }
+    .age-bar-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 10px;
+    }
+    .age-bar-label { width: 60px; font-size: 11px; color: var(--text-muted); text-align: right; }
+    .age-bar-track { flex: 1; height: 22px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; position: relative; }
+    .age-bar-fill {
+      height: 100%;
+      background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      padding-right: 8px;
+      font-size: 10px;
+      color: rgba(255,255,255,0.8);
+      min-width: 2px;
+      transition: width 0.7s cubic-bezier(.4,0,.2,1);
+    }
+    .age-bar-count { width: 30px; font-size: 11px; color: var(--text-dim); }
+
+    /* ── Spinner override for inline ── */
+    .inline-loader { padding: 40px; }
+
+    /* ── Result count ── */
+    .result-count {
+      font-size: 11px;
+      color: var(--text-muted);
+      letter-spacing: 0.5px;
+    }
+  </style>
+</head>
+<body>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/shell.js"></script>
+<!-- jsPDF + autoTable for PDF export -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+if (!requireAuth()) throw '';
+buildShell({ page: 'reports', title: 'Reports & Analytics' });
+
+// ── State ──
+let allDepartments = [];
+let deptReportData   = { content: [], totalElements: 0, totalPages: 0 };
+let ageReportData    = { content: [], totalElements: 0, totalPages: 0 };
+let deptPage = 0, agePage = 0;
+let deptFilter = '', deptActiveFilter = '';
+let ageActiveFilter = '', ageSort = 'asc', ageMin = '', ageMax = '';
+const PAGE_SIZE = 10;
+
+// ── Render shell ──
+const body = document.getElementById('page-body');
+
+body.innerHTML = `
+  <div class="page-section">
+
+    <!-- Tab Bar -->
+    <div class="tab-bar">
+      <button class="tab-btn active" data-tab="by-dept" onclick="switchTab('by-dept')">
+        <span class="tab-icon">◫</span> By Department
+      </button>
+      <button class="tab-btn" data-tab="by-age" onclick="switchTab('by-age')">
+        <span class="tab-icon">◷</span> By Age
+      </button>
+      <button class="tab-btn" data-tab="stats" onclick="switchTab('stats')">
+        <span class="tab-icon">▦</span> Statistics
+      </button>
+    </div>
+
+    <!-- ══ TAB 1: By Department ══ -->
+    <div class="tab-panel active" id="tab-by-dept">
+      <div class="report-card">
+        <div class="filter-bar">
+          <span class="filter-bar-title">Employees by Department</span>
+          <select class="filter-select" id="dept-select" onchange="onDeptChange(this.value)">
+            <option value="">All Departments</option>
+          </select>
+          <select class="filter-select" onchange="onDeptActiveChange(this.value)">
+            <option value="">All Status</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <span class="result-count" id="dept-count"></span>
+        </div>
+
+        <div id="dept-table-area">
+          <div class="loader inline-loader"><div class="spinner"></div> Loading…</div>
+        </div>
+
+        <div class="export-strip">
+          <span class="export-label">Export current view</span>
+          <div class="export-btns">
+            <button class="btn-export btn-export-csv" onclick="exportDeptCSV()">⬇ CSV</button>
+            <button class="btn-export btn-export-pdf" onclick="exportDeptPDF()">⬇ PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB 2: By Age ══ -->
+    <div class="tab-panel" id="tab-by-age">
+      <div class="report-card">
+        <div class="filter-bar">
+          <span class="filter-bar-title">Employees by Age</span>
+          <select class="filter-select" onchange="onAgeActiveChange(this.value)">
+            <option value="">All Status</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <select class="filter-select" onchange="onAgeSortChange(this.value)">
+            <option value="asc">Age ↑ Youngest</option>
+            <option value="desc">Age ↓ Oldest</option>
+          </select>
+          <div style="display:flex;gap:6px;align-items:center">
+            <input class="filter-select" id="age-min" type="number" placeholder="Min age" style="width:90px" oninput="onAgeRangeChange()" />
+            <span style="color:var(--text-muted);font-size:12px">–</span>
+            <input class="filter-select" id="age-max" type="number" placeholder="Max age" style="width:90px" oninput="onAgeRangeChange()" />
+          </div>
+          <span class="result-count" id="age-count"></span>
+        </div>
+
+        <div id="age-table-area">
+          <div class="loader inline-loader"><div class="spinner"></div> Loading…</div>
+        </div>
+
+        <div class="export-strip">
+          <span class="export-label">Export current view</span>
+          <div class="export-btns">
+            <button class="btn-export btn-export-csv" onclick="exportAgeCSV()">⬇ CSV</button>
+            <button class="btn-export btn-export-pdf" onclick="exportAgePDF()">⬇ PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ══ TAB 3: Statistics ══ -->
+    <div class="tab-panel" id="tab-stats">
+      <div class="report-card">
+        <div class="stats-big-grid" id="stats-grid">
+          <div class="loader inline-loader" style="grid-column:1/-1"><div class="spinner"></div> Loading…</div>
+        </div>
+
+        <div class="divider" style="margin:0 22px"></div>
+
+        <div class="dept-stats-section">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+            <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text)">Department Breakdown</div>
+          </div>
+          <div id="dept-breakdown">
+            <div class="loader inline-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <div style="padding:0 22px 22px">
+          <div style="font-family:'Syne',sans-serif;font-weight:700;font-size:14px;color:var(--text);margin-bottom:16px">Age Distribution</div>
+          <div id="age-distribution">
+            <div class="loader inline-loader"><div class="spinner"></div></div>
+          </div>
+        </div>
+
+        <div class="export-strip">
+          <span class="export-label">Export statistics report</span>
+          <div class="export-btns">
+            <button class="btn-export btn-export-pdf" onclick="exportStatsPDF()">⬇ PDF Report</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+`;
+
+// ── Tab switching ──
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
+}
+
+// ── Init ──
+async function init() {
+  try {
+    allDepartments = await api.departments.getAll();
+    const sel = document.getElementById('dept-select');
+    allDepartments.filter(d => d.active).forEach(d => {
+      sel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+    });
+  } catch {}
+
+  loadDeptReport();
+  loadAgeReport();
+  loadStats();
+}
+
+// ══ TAB 1: Department Report ══
+function onDeptChange(v) { deptFilter = v; deptPage = 0; loadDeptReport(); }
+function onDeptActiveChange(v) { deptActiveFilter = v; deptPage = 0; loadDeptReport(); }
+
+async function loadDeptReport() {
+  const area = document.getElementById('dept-table-area');
+  area.innerHTML = `<div class="loader inline-loader"><div class="spinner"></div> Loading…</div>`;
+  try {
+    let data;
+    if (deptFilter) {
+      const params = { page: deptPage, size: PAGE_SIZE };
+      if (deptActiveFilter !== '') params.active = deptActiveFilter;
+      data = await api.employees.getByDepartment(deptFilter, params);
+    } else {
+      const params = { page: deptPage, size: PAGE_SIZE };
+      if (deptActiveFilter !== '') params.active = deptActiveFilter;
+      data = await api.employees.searchFilter(params);
+    }
+    deptReportData = data;
+    renderDeptTable(data);
+    document.getElementById('dept-count').textContent = `${data.totalElements} record${data.totalElements !== 1 ? 's' : ''}`;
+  } catch (err) {
+    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+function renderDeptTable(data) {
+  const employees = data.content || [];
+  const area = document.getElementById('dept-table-area');
+  if (!employees.length) {
+    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◫</div><div class="empty-state-text">No employees found for this filter</div></div>`;
+    return;
+  }
+  area.innerHTML = `
+    <div class="table-wrap">
+      <table id="dept-report-table">
+        <thead><tr>
+          <th>Emp ID</th>
+          <th>Full Name</th>
+          <th>Date of Birth</th>
+          <th>Age</th>
+          <th>Department</th>
+          <th>Salary</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${employees.map(e => `
+            <tr>
+              <td><span class="id-chip">#${e.employeeId}</span></td>
+              <td class="td-bold">${e.fullName}</td>
+              <td>${formatDate(e.dateOfBirth)}</td>
+              <td>${e.age ?? '—'}</td>
+              <td>${e.departmentName || '—'}</td>
+              <td>${formatCurrency(e.salary)}</td>
+              <td>${activeBadge(e.active)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span class="pagination-info">Page ${deptPage + 1} of ${data.totalPages} · ${data.totalElements} total</span>
+      <div class="pagination-controls" id="dept-pag"></div>
+    </div>
+  `;
+  buildPagination(document.getElementById('dept-pag'), deptPage, data.totalPages, (p) => { deptPage = p; loadDeptReport(); });
+}
+
+// ══ TAB 2: Age Report ══
+function onAgeActiveChange(v) { ageActiveFilter = v; agePage = 0; loadAgeReport(); }
+function onAgeSortChange(v) { ageSort = v; agePage = 0; loadAgeReport(); }
+let ageRangeTimer;
+function onAgeRangeChange() {
+  ageMin = document.getElementById('age-min').value;
+  ageMax = document.getElementById('age-max').value;
+  clearTimeout(ageRangeTimer);
+  ageRangeTimer = setTimeout(() => { agePage = 0; loadAgeReport(); }, 400);
+}
+
+async function loadAgeReport() {
+  const area = document.getElementById('age-table-area');
+  area.innerHTML = `<div class="loader inline-loader"><div class="spinner"></div> Loading…</div>`;
+  try {
+    const params = { page: agePage, size: PAGE_SIZE, sort: ageSort };
+    if (ageActiveFilter !== '') params.active = ageActiveFilter;
+    if (ageMin) params.minAge = ageMin;
+    if (ageMax) params.maxAge = ageMax;
+    const data = await api.employees.getByAge(params);
+    ageReportData = data;
+    renderAgeTable(data);
+    document.getElementById('age-count').textContent = `${data.totalElements} record${data.totalElements !== 1 ? 's' : ''}`;
+  } catch (err) {
+    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+function renderAgeTable(data) {
+  const employees = data.content || [];
+  const area = document.getElementById('age-table-area');
+  if (!employees.length) {
+    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◷</div><div class="empty-state-text">No employees found</div></div>`;
+    return;
+  }
+  area.innerHTML = `
+    <div class="table-wrap">
+      <table id="age-report-table">
+        <thead><tr>
+          <th>Emp ID</th>
+          <th>Full Name</th>
+          <th>Age</th>
+          <th>Date of Birth</th>
+          <th>Department</th>
+          <th>Salary</th>
+          <th>Status</th>
+        </tr></thead>
+        <tbody>
+          ${employees.map(e => `
+            <tr>
+              <td><span class="id-chip">#${e.employeeId}</span></td>
+              <td class="td-bold">${e.fullName}</td>
+              <td style="font-family:'Syne',sans-serif;font-weight:700;color:var(--accent);font-size:15px">${e.age ?? '—'}</td>
+              <td>${formatDate(e.dateOfBirth)}</td>
+              <td>${e.departmentName || '—'}</td>
+              <td>${formatCurrency(e.salary)}</td>
+              <td>${activeBadge(e.active)}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div class="pagination">
+      <span class="pagination-info">Page ${agePage + 1} of ${data.totalPages} · ${data.totalElements} total</span>
+      <div class="pagination-controls" id="age-pag"></div>
+    </div>
+  `;
+  buildPagination(document.getElementById('age-pag'), agePage, data.totalPages, (p) => { agePage = p; loadAgeReport(); });
+}
+
+// ══ TAB 3: Statistics ══
+async function loadStats() {
+  try {
+    const [employees, departments, avgSalAll, avgAgeAll, avgSalActive, avgAgeActive] = await Promise.all([
+      api.employees.getAll(),
+      api.departments.getAll(),
+      api.employees.avgSalary({}),
+      api.employees.avgAge({}),
+      api.employees.avgSalary({ active: true }),
+      api.employees.avgAge({ active: true }),
+    ]);
+
+    const active = employees.filter(e => e.active);
+    const inactive = employees.filter(e => !e.active);
+    const activeDepts = departments.filter(d => d.active);
+
+    // Stats grid
+    document.getElementById('stats-grid').innerHTML = `
+      <div class="stats-big-card">
+        <div class="sbc-icon">◉</div>
+        <div class="sbc-label">Total Employees</div>
+        <div class="sbc-value">${employees.length}</div>
+        <div class="sbc-sub">${active.length} active · ${inactive.length} inactive</div>
+      </div>
+      <div class="stats-big-card">
+        <div class="sbc-icon">◫</div>
+        <div class="sbc-label">Departments</div>
+        <div class="sbc-value">${activeDepts.length}</div>
+        <div class="sbc-sub">${departments.length} total (${departments.length - activeDepts.length} inactive)</div>
+      </div>
+      <div class="stats-big-card">
+        <div class="sbc-icon">₿</div>
+        <div class="sbc-label">Avg Salary (All)</div>
+        <div class="sbc-value" style="font-size:22px">${avgSalAll ? formatCurrency(avgSalAll) : '—'}</div>
+        <div class="sbc-sub">Active only: ${avgSalActive ? formatCurrency(avgSalActive) : '—'}</div>
+      </div>
+      <div class="stats-big-card">
+        <div class="sbc-icon">◷</div>
+        <div class="sbc-label">Avg Age (All)</div>
+        <div class="sbc-value">${avgAgeAll ? Math.round(avgAgeAll) : '—'}</div>
+        <div class="sbc-sub">Active only: ${avgAgeActive ? Math.round(avgAgeActive) : '—'} yrs</div>
+      </div>
+    `;
+
+    // Department breakdown
+    const deptMap = {};
+    employees.forEach(e => {
+      if (!e.departmentName) return;
+      if (!deptMap[e.departmentName]) deptMap[e.departmentName] = { count: 0, salaries: [], ages: [] };
+      deptMap[e.departmentName].count++;
+      if (e.salary) deptMap[e.departmentName].salaries.push(Number(e.salary));
+      if (e.age) deptMap[e.departmentName].ages.push(e.age);
+    });
+
+    const maxCount = Math.max(...Object.values(deptMap).map(d => d.count), 1);
+    const sortedDepts = Object.entries(deptMap).sort((a, b) => b[1].count - a[1].count);
+
+    document.getElementById('dept-breakdown').innerHTML = sortedDepts.length ? sortedDepts.map(([name, d]) => {
+      const pct = Math.round((d.count / maxCount) * 100);
+      const avgSal = d.salaries.length ? formatCurrency(d.salaries.reduce((a,b)=>a+b,0)/d.salaries.length) : '—';
+      const avgAge = d.ages.length ? Math.round(d.ages.reduce((a,b)=>a+b,0)/d.ages.length) : '—';
+      return `
+        <div class="dept-stat-row">
+          <div class="dept-stat-name">${name}</div>
+          <div class="dept-stat-bar-wrap">
+            <div class="dept-stat-bar" style="width:${pct}%"></div>
+          </div>
+          <div class="dept-stat-nums">
+            <div class="dept-stat-count">${d.count} emp${d.count !== 1 ? 's' : ''}</div>
+            <div class="dept-stat-avg">Avg sal: ${avgSal} · Avg age: ${avgAge}</div>
+          </div>
+        </div>
+      `;
+    }).join('') : '<div class="empty-state"><div class="empty-state-text">No data</div></div>';
+
+    // Age distribution (buckets)
+    const buckets = { '< 25': 0, '25–34': 0, '35–44': 0, '45–54': 0, '55+': 0 };
+    employees.forEach(e => {
+      const a = e.age;
+      if (!a) return;
+      if (a < 25) buckets['< 25']++;
+      else if (a < 35) buckets['25–34']++;
+      else if (a < 45) buckets['35–44']++;
+      else if (a < 55) buckets['45–54']++;
+      else buckets['55+']++;
+    });
+
+    const maxBucket = Math.max(...Object.values(buckets), 1);
+    document.getElementById('age-distribution').innerHTML = `
+      <div class="age-chart">
+        ${Object.entries(buckets).map(([label, count]) => {
+          const pct = Math.round((count / maxBucket) * 100);
+          return `
+            <div class="age-bar-row">
+              <div class="age-bar-label">${label}</div>
+              <div class="age-bar-track">
+                <div class="age-bar-fill" style="width:${pct}%">${count > 0 ? count : ''}</div>
+              </div>
+              <div class="age-bar-count">${count}</div>
+            </div>
+          `;
+        }).join('')}
+      </div>
+    `;
+
+    // Store for PDF
+    window._statsSnapshot = { employees, departments, avgSalAll, avgAgeAll, avgSalActive, avgAgeActive, deptMap, sortedDepts, buckets };
+
+  } catch (err) {
+    document.getElementById('stats-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+// ══ Add missing API methods ══
+api.employees.getByDepartment = (deptId, params) => {
+  const q = new URLSearchParams(params).toString();
+  return api.get(`/employees/report/department/${deptId}/paged?${q}`);
+};
+api.employees.getByAge = (params) => {
+  const q = new URLSearchParams(params).toString();
+  return api.get(`/employees/report/age/paged?${q}`);
+};
+
+// ══ CSV Helpers ══
+function toCSV(rows, headers) {
+  const escape = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+  return [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+}
+
+function downloadCSV(csv, filename) {
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+}
+
+function exportDeptCSV() {
+  const rows = (deptReportData.content || []).map(e => [
+    e.employeeId, e.fullName, e.dateOfBirth || '', e.age ?? '', e.departmentName || '', e.salary ?? '', e.active ? 'Active' : 'Inactive'
+  ]);
+  downloadCSV(toCSV(rows, ['Employee ID','Full Name','Date of Birth','Age','Department','Salary','Status']), 'report-by-department.csv');
+  showToast('CSV downloaded', 'success');
+}
+
+function exportAgeCSV() {
+  const rows = (ageReportData.content || []).map(e => [
+    e.employeeId, e.fullName, e.age ?? '', e.dateOfBirth || '', e.departmentName || '', e.salary ?? '', e.active ? 'Active' : 'Inactive'
+  ]);
+  downloadCSV(toCSV(rows, ['Employee ID','Full Name','Age','Date of Birth','Department','Salary','Status']), 'report-by-age.csv');
+  showToast('CSV downloaded', 'success');
+}
+
+// ══ PDF Exports ══
+function pdfHeader(doc, title) {
+  const { jsPDF } = window.jspdf;
+  const pageW = doc.internal.pageSize.getWidth();
+  // Dark header bar
+  doc.setFillColor(10, 10, 20);
+  doc.rect(0, 0, pageW, 28, 'F');
+
+  // Accent line
+  doc.setFillColor(124, 111, 255);
+  doc.rect(0, 26, pageW, 2, 'F');
+
+  // Logo text
+  doc.setTextColor(255, 255, 255);
+  doc.setFont('helvetica', 'bold');
+  doc.setFontSize(16);
+  doc.text('💼 EmpTrack', 14, 17);
+
+  // Title right
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'normal');
+  doc.setTextColor(180, 180, 210);
+  doc.text(title, pageW - 14, 17, { align: 'right' });
+
+  // Generated date
+  doc.setFontSize(8);
+  doc.setTextColor(140, 140, 170);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 38);
+
+  return 44; // y offset after header
+}
+
+function pdfFooter(doc) {
+  const pageCount = doc.internal.getNumberOfPages();
+  const pageW = doc.internal.pageSize.getWidth();
+  const pageH = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFillColor(15, 15, 28);
+    doc.rect(0, pageH - 12, pageW, 12, 'F');
+    doc.setTextColor(100, 100, 140);
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.text('EmpTrack HR System — Confidential', 14, pageH - 4);
+    doc.text(`Page ${i} / ${pageCount}`, pageW - 14, pageH - 4, { align: 'right' });
+  }
+}
+
+function tableStyles() {
+  return {
+    styles: {
+      fontSize: 9,
+      cellPadding: 4,
+      textColor: [220, 220, 235],
+      lineColor: [40, 40, 60],
+      lineWidth: 0.3,
+    },
+    headStyles: {
+      fillColor: [20, 18, 40],
+      textColor: [170, 160, 255],
+      fontStyle: 'bold',
+      fontSize: 8,
+      halign: 'left',
+    },
+    alternateRowStyles: { fillColor: [18, 18, 28] },
+    bodyStyles: { fillColor: [13, 13, 22] },
+    tableLineColor: [40, 40, 60],
+    tableLineWidth: 0.3,
+  };
+}
+
+function exportDeptPDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const startY = pdfHeader(doc, 'Employee Report — By Department');
+
+  const deptName = deptFilter
+    ? (allDepartments.find(d => String(d.id) === String(deptFilter))?.name || 'Selected Department')
+    : 'All Departments';
+  const statusLabel = deptActiveFilter === 'true' ? 'Active Only' : deptActiveFilter === 'false' ? 'Inactive Only' : 'All Status';
+
+  doc.setTextColor(180, 180, 210);
+  doc.setFontSize(9);
+  doc.text(`Department: ${deptName}  |  Status: ${statusLabel}  |  Records: ${deptReportData.totalElements}`, 14, startY);
+
+  const rows = (deptReportData.content || []).map(e => [
+    `#${e.employeeId}`,
+    e.fullName,
+    e.dateOfBirth || '—',
+    e.age ?? '—',
+    e.departmentName || '—',
+    formatCurrency(e.salary),
+    e.active ? 'Active' : 'Inactive',
+  ]);
+
+  doc.autoTable({
+    startY: startY + 6,
+    head: [['Emp ID', 'Full Name', 'Date of Birth', 'Age', 'Department', 'Salary', 'Status']],
+    body: rows,
+    ...tableStyles(),
+    columnStyles: {
+      0: { cellWidth: 20 },
+      5: { halign: 'right' },
+      6: { halign: 'center' },
+    },
+    didParseCell(data) {
+      if (data.section === 'body' && data.column.index === 6) {
+        data.cell.styles.textColor = data.cell.raw === 'Active' ? [82, 214, 138] : [255, 107, 107];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  pdfFooter(doc);
+  doc.save(`emptrack-report-by-department-${Date.now()}.pdf`);
+  showToast('PDF exported', 'success');
+}
+
+function exportAgePDF() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+  const startY = pdfHeader(doc, 'Employee Report — By Age');
+
+  const statusLabel = ageActiveFilter === 'true' ? 'Active Only' : ageActiveFilter === 'false' ? 'Inactive Only' : 'All Status';
+  const sortLabel = ageSort === 'asc' ? 'Youngest First' : 'Oldest First';
+  const rangeLabel = (ageMin || ageMax) ? `Age ${ageMin || '?'} – ${ageMax || '?'}` : 'All Ages';
+
+  doc.setTextColor(180, 180, 210);
+  doc.setFontSize(9);
+  doc.text(`Sort: ${sortLabel}  |  ${rangeLabel}  |  Status: ${statusLabel}  |  Records: ${ageReportData.totalElements}`, 14, startY);
+
+  const rows = (ageReportData.content || []).map(e => [
+    `#${e.employeeId}`,
+    e.fullName,
+    e.age ?? '—',
+    e.dateOfBirth || '—',
+    e.departmentName || '—',
+    formatCurrency(e.salary),
+    e.active ? 'Active' : 'Inactive',
+  ]);
+
+  doc.autoTable({
+    startY: startY + 6,
+    head: [['Emp ID', 'Full Name', 'Age', 'Date of Birth', 'Department', 'Salary', 'Status']],
+    body: rows,
+    ...tableStyles(),
+    columnStyles: {
+      0: { cellWidth: 20 },
+      2: { halign: 'center', fontStyle: 'bold', textColor: [124, 111, 255] },
+      5: { halign: 'right' },
+      6: { halign: 'center' },
+    },
+    didParseCell(data) {
+      if (data.section === 'body' && data.column.index === 6) {
+        data.cell.styles.textColor = data.cell.raw === 'Active' ? [82, 214, 138] : [255, 107, 107];
+        data.cell.styles.fontStyle = 'bold';
+      }
+    },
+    margin: { left: 14, right: 14 },
+  });
+
+  pdfFooter(doc);
+  doc.save(`emptrack-report-by-age-${Date.now()}.pdf`);
+  showToast('PDF exported', 'success');
+}
+
+function exportStatsPDF() {
+  const s = window._statsSnapshot;
+  if (!s) { showToast('Statistics not loaded yet', 'error'); return; }
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const pageW = doc.internal.pageSize.getWidth();
+  let y = pdfHeader(doc, 'Statistics Report');
+
+  // ── Summary boxes ──
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(200, 200, 220);
+  doc.text('Summary', 14, y + 4);
+  y += 10;
+
+  const boxes = [
+    { label: 'Total Employees', value: s.employees.length },
+    { label: 'Active', value: s.employees.filter(e => e.active).length },
+    { label: 'Inactive', value: s.employees.filter(e => !e.active).length },
+    { label: 'Departments', value: s.departments.filter(d => d.active).length },
+  ];
+
+  const boxW = (pageW - 28 - 9) / 4;
+  boxes.forEach((b, i) => {
+    const x = 14 + i * (boxW + 3);
+    doc.setFillColor(20, 18, 40);
+    doc.roundedRect(x, y, boxW, 18, 2, 2, 'F');
+    doc.setFillColor(124, 111, 255);
+    doc.rect(x, y + 16, boxW, 2, 'F');
+    doc.setTextColor(140, 140, 180);
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(b.label.toUpperCase(), x + boxW / 2, y + 6, { align: 'center' });
+    doc.setTextColor(220, 220, 240);
+    doc.setFontSize(16);
+    doc.setFont('helvetica', 'bold');
+    doc.text(String(b.value), x + boxW / 2, y + 14, { align: 'center' });
+  });
+  y += 24;
+
+  // ── Salary & Age ──
+  const metricsLeft = [
+    ['Avg Salary (All)', s.avgSalAll ? formatCurrency(s.avgSalAll) : '—'],
+    ['Avg Salary (Active)', s.avgSalActive ? formatCurrency(s.avgSalActive) : '—'],
+    ['Avg Age (All)', s.avgAgeAll ? `${Math.round(s.avgAgeAll)} yrs` : '—'],
+    ['Avg Age (Active)', s.avgAgeActive ? `${Math.round(s.avgAgeActive)} yrs` : '—'],
+  ];
+
+  doc.autoTable({
+    startY: y,
+    head: [['Metric', 'Value']],
+    body: metricsLeft,
+    ...tableStyles(),
+    columnStyles: { 1: { halign: 'right', fontStyle: 'bold', textColor: [124, 111, 255] } },
+    tableWidth: 80,
+    margin: { left: 14, right: pageW - 94 },
+  });
+
+  // ── Department breakdown table ──
+  const deptRows = s.sortedDepts.map(([name, d]) => {
+    const avgSal = d.salaries.length ? formatCurrency(d.salaries.reduce((a,b)=>a+b,0)/d.salaries.length) : '—';
+    const avgAge = d.ages.length ? Math.round(d.ages.reduce((a,b)=>a+b,0)/d.ages.length) : '—';
+    return [name, d.count, avgSal, avgAge];
+  });
+
+  doc.autoTable({
+    startY: y,
+    head: [['Department', 'Employees', 'Avg Salary', 'Avg Age']],
+    body: deptRows,
+    ...tableStyles(),
+    columnStyles: {
+      1: { halign: 'center' },
+      2: { halign: 'right' },
+      3: { halign: 'center' },
+    },
+    tableWidth: pageW - 98 - 14,
+    margin: { left: 98, right: 14 },
+  });
+
+  y = Math.max(doc.lastAutoTable.finalY, y + 50) + 10;
+
+  // ── Age distribution ──
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(200, 200, 220);
+  doc.text('Age Distribution', 14, y);
+  y += 6;
+
+  const bucketRows = Object.entries(s.buckets).map(([label, count]) => [label, count, `${Math.round((count / s.employees.length) * 100)}%`]);
+  doc.autoTable({
+    startY: y,
+    head: [['Age Group', 'Count', 'Share']],
+    body: bucketRows,
+    ...tableStyles(),
+    columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
+    tableWidth: 80,
+    margin: { left: 14 },
+  });
+
+  pdfFooter(doc);
+  doc.save(`emptrack-statistics-report-${Date.now()}.pdf`);
+  showToast('Statistics PDF exported', 'success');
+}
+
+init();
+</script>
+</body>
+</html>

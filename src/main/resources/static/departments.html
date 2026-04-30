@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EmpTrack — Departments</title>
+  <link rel="stylesheet" href="css/main.css" />
+</head>
+<body>
+<script src="js/api.js"></script>
+<script src="js/utils.js"></script>
+<script src="js/shell.js"></script>
+<script>
+if (!requireAuth()) throw '';
+buildShell({ page: 'departments', title: 'Departments' });
+
+let editingId = null;
+let allDepts = [];
+
+const body = document.getElementById('page-body');
+const actions = document.getElementById('topbar-actions');
+
+actions.innerHTML = `<button class="btn btn-primary" onclick="openAddModal()">＋ Add Department</button>`;
+
+body.innerHTML = `
+  <div class="page-section">
+    <div class="search-row">
+      <div class="search-wrap">
+        <span class="search-icon">⌕</span>
+        <input class="search-input" id="search-input" placeholder="Search departments…" oninput="renderTable(this.value)" />
+      </div>
+      <select class="filter-select" onchange="filterStatus(this.value)" id="status-filter">
+        <option value="">All Status</option>
+        <option value="active">Active</option>
+        <option value="inactive">Inactive</option>
+      </select>
+    </div>
+
+    <div class="card" id="dept-card">
+      <div class="loader"><div class="spinner"></div> Loading…</div>
+    </div>
+  </div>
+
+  <!-- Modal -->
+  <div class="modal-backdrop" id="dept-modal">
+    <div class="modal" style="max-width:420px">
+      <div class="modal-header">
+        <span class="modal-title" id="dept-modal-title">Add Department</span>
+        <button class="modal-close" onclick="closeModal('dept-modal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">Department Name</label>
+          <input class="form-input" id="d-name" placeholder="e.g. Engineering" />
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-ghost" onclick="closeModal('dept-modal')">Cancel</button>
+        <button class="btn btn-primary" id="dept-save-btn" onclick="saveDept()">Save</button>
+      </div>
+    </div>
+  </div>
+`;
+
+let currentFilter = '';
+let currentSearch = '';
+
+async function loadDepts() {
+  try {
+    allDepts = await api.departments.getAll();
+    renderTable();
+  } catch (err) {
+    document.getElementById('dept-card').innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+  }
+}
+
+function renderTable(search) {
+  if (search !== undefined) currentSearch = search.toLowerCase();
+  const card = document.getElementById('dept-card');
+  let data = allDepts;
+  if (currentSearch) data = data.filter(d => d.name.toLowerCase().includes(currentSearch));
+  if (currentFilter === 'active') data = data.filter(d => d.active);
+  if (currentFilter === 'inactive') data = data.filter(d => !d.active);
+
+  if (!data.length) {
+    card.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◫</div><div class="empty-state-text">No departments found</div></div>`;
+    return;
+  }
+
+  card.innerHTML = `
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>ID</th>
+          <th>Name</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(d => `
+            <tr>
+              <td><span class="id-chip">${d.id}</span></td>
+              <td class="td-bold">${d.name}</td>
+              <td>${activeBadge(d.active)}</td>
+              <td>
+                <div class="action-cell">
+                  <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openEditModal(${d.id},'${d.name.replace(/'/g,"\\'")}')">✎</button>
+                  ${d.active
+                    ? `<button class="btn btn-danger btn-sm btn-icon" title="Deactivate" onclick="confirmDeactivate(${d.id},'${d.name.replace(/'/g,"\\'")}')">⊗</button>`
+                    : `<button class="btn btn-success btn-sm btn-icon" title="Activate" onclick="activateDept(${d.id})">✓</button>`
+                  }
+                </div>
+              </td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+    </div>
+    <div style="padding:12px 22px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)">${data.length} department${data.length !== 1 ? 's' : ''}</div>
+  `;
+}
+
+function filterStatus(v) { currentFilter = v; renderTable(); }
+
+function openAddModal() {
+  editingId = null;
+  document.getElementById('dept-modal-title').textContent = 'Add Department';
+  document.getElementById('dept-save-btn').textContent = 'Save';
+  document.getElementById('d-name').value = '';
+  openModal('dept-modal');
+}
+
+function openEditModal(id, name) {
+  editingId = id;
+  document.getElementById('dept-modal-title').textContent = 'Edit Department';
+  document.getElementById('dept-save-btn').textContent = 'Update';
+  document.getElementById('d-name').value = name;
+  openModal('dept-modal');
+}
+
+async function saveDept() {
+  const name = document.getElementById('d-name').value.trim();
+  if (!name) { showToast('Department name is required', 'error'); return; }
+  const btn = document.getElementById('dept-save-btn');
+  btn.textContent = 'Saving…'; btn.disabled = true;
+  try {
+    if (editingId) {
+      await api.departments.update(editingId, { name });
+      showToast('Department updated', 'success');
+    } else {
+      await api.departments.create({ name });
+      showToast('Department created', 'success');
+    }
+    closeModal('dept-modal');
+    loadDepts();
+  } catch (err) { showToast(err.message, 'error'); }
+  btn.textContent = editingId ? 'Update' : 'Save';
+  btn.disabled = false;
+}
+
+function confirmDeactivate(id, name) {
+  showConfirm('Deactivate Department', name, () => deactivateDept(id));
+}
+
+async function deactivateDept(id) {
+  try { await api.departments.delete(id); showToast('Department deactivated', 'success'); loadDepts(); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+
+async function activateDept(id) {
+  try { await api.departments.activate(id); showToast('Department activated', 'success'); loadDepts(); }
+  catch (err) { showToast(err.message, 'error'); }
+}
+
+loadDepts();
+</script>
+</body>
+</html>
