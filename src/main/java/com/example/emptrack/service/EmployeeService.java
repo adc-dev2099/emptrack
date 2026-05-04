@@ -70,7 +70,7 @@ public class EmployeeService {
                 .orElseThrow(() -> new ResourceNotFoundException(messageUtil.get("employee.not.found", id)));
         return mapToResponseDTO(employee);
     }
-
+    // Array List
     public List<EmployeeResponseDTO> getAll() {
         List<Employee> employees = employeeRepository.findAll();
         List<EmployeeResponseDTO> result = new ArrayList<>();

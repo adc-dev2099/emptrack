@@ -187,7 +187,7 @@
 
     .dept-stat-bar {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent), var(--accent3));
+      background: var(--accent);
       border-radius: 4px;
       transition: width 0.8s cubic-bezier(.4,0,.2,1);
     }
@@ -212,7 +212,7 @@
     .age-bar-track { flex: 1; height: 22px; background: var(--bg-hover); border-radius: 3px; overflow: hidden; position: relative; }
     .age-bar-fill {
       height: 100%;
-      background: linear-gradient(90deg, var(--accent-dim), var(--accent));
+      background: var(--accent);
       border-radius: 3px;
       display: flex;
       align-items: center;
@@ -245,22 +245,22 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
 
 <script>
-if (!requireAuth()) throw '';
-buildShell({ page: 'reports', title: 'Reports & Analytics' });
+  if (!requireAuth()) throw '';
+  buildShell({ page: 'reports', title: 'Reports & Analytics' });
 
-// ── State ──
-let allDepartments = [];
-let deptReportData   = { content: [], totalElements: 0, totalPages: 0 };
-let ageReportData    = { content: [], totalElements: 0, totalPages: 0 };
-let deptPage = 0, agePage = 0;
-let deptFilter = '', deptActiveFilter = '';
-let ageActiveFilter = '', ageSort = 'asc', ageMin = '', ageMax = '';
-const PAGE_SIZE = 10;
+  // ── State ──
+  let allDepartments = [];
+  let deptReportData   = { content: [], totalElements: 0, totalPages: 0 };
+  let ageReportData    = { content: [], totalElements: 0, totalPages: 0 };
+  let deptPage = 0, agePage = 0;
+  let deptFilter = '', deptActiveFilter = '';
+  let ageActiveFilter = '', ageSort = 'asc', ageMin = '', ageMax = '';
+  const PAGE_SIZE = 10;
 
-// ── Render shell ──
-const body = document.getElementById('page-body');
+  // ── Render shell ──
+  const body = document.getElementById('page-body');
 
-body.innerHTML = `
+  body.innerHTML = `
   <div class="page-section">
 
     <!-- Tab Bar -->
@@ -379,61 +379,61 @@ body.innerHTML = `
   </div>
 `;
 
-// ── Tab switching ──
-function switchTab(name) {
-  document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
-  document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
-}
+  // ── Tab switching ──
+  function switchTab(name) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.toggle('active', p.id === `tab-${name}`));
+  }
 
-// ── Init ──
-async function init() {
-  try {
-    allDepartments = await api.departments.getAll();
-    const sel = document.getElementById('dept-select');
-    allDepartments.filter(d => d.active).forEach(d => {
-      sel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
-    });
-  } catch {}
+  // ── Init ──
+  async function init() {
+    try {
+      allDepartments = await api.departments.getAll();
+      const sel = document.getElementById('dept-select');
+      allDepartments.filter(d => d.active).forEach(d => {
+        sel.innerHTML += `<option value="${d.id}">${d.name}</option>`;
+      });
+    } catch {}
 
-  loadDeptReport();
-  loadAgeReport();
-  loadStats();
-}
+    loadDeptReport();
+    loadAgeReport();
+    loadStats();
+  }
 
-// ══ TAB 1: Department Report ══
-function onDeptChange(v) { deptFilter = v; deptPage = 0; loadDeptReport(); }
-function onDeptActiveChange(v) { deptActiveFilter = v; deptPage = 0; loadDeptReport(); }
+  // ══ TAB 1: Department Report ══
+  function onDeptChange(v) { deptFilter = v; deptPage = 0; loadDeptReport(); }
+  function onDeptActiveChange(v) { deptActiveFilter = v; deptPage = 0; loadDeptReport(); }
 
-async function loadDeptReport() {
-  const area = document.getElementById('dept-table-area');
-  area.innerHTML = `<div class="loader inline-loader"><div class="spinner"></div> Loading…</div>`;
-  try {
-    let data;
-    if (deptFilter) {
-      const params = { page: deptPage, size: PAGE_SIZE };
-      if (deptActiveFilter !== '') params.active = deptActiveFilter;
-      data = await api.employees.getByDepartment(deptFilter, params);
-    } else {
-      const params = { page: deptPage, size: PAGE_SIZE };
-      if (deptActiveFilter !== '') params.active = deptActiveFilter;
-      data = await api.employees.searchFilter(params);
+  async function loadDeptReport() {
+    const area = document.getElementById('dept-table-area');
+    area.innerHTML = `<div class="loader inline-loader"><div class="spinner"></div> Loading…</div>`;
+    try {
+      let data;
+      if (deptFilter) {
+        const params = { page: deptPage, size: PAGE_SIZE };
+        if (deptActiveFilter !== '') params.active = deptActiveFilter;
+        data = await api.employees.getByDepartment(deptFilter, params);
+      } else {
+        const params = { page: deptPage, size: PAGE_SIZE };
+        if (deptActiveFilter !== '') params.active = deptActiveFilter;
+        data = await api.employees.searchFilter(params);
+      }
+      deptReportData = data;
+      renderDeptTable(data);
+      document.getElementById('dept-count').textContent = `${data.totalElements} record${data.totalElements !== 1 ? 's' : ''}`;
+    } catch (err) {
+      area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
     }
-    deptReportData = data;
-    renderDeptTable(data);
-    document.getElementById('dept-count').textContent = `${data.totalElements} record${data.totalElements !== 1 ? 's' : ''}`;
-  } catch (err) {
-    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
   }
-}
 
-function renderDeptTable(data) {
-  const employees = data.content || [];
-  const area = document.getElementById('dept-table-area');
-  if (!employees.length) {
-    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◫</div><div class="empty-state-text">No employees found for this filter</div></div>`;
-    return;
-  }
-  area.innerHTML = `
+  function renderDeptTable(data) {
+    const employees = data.content || [];
+    const area = document.getElementById('dept-table-area');
+    if (!employees.length) {
+      area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◫</div><div class="empty-state-text">No employees found for this filter</div></div>`;
+      return;
+    }
+    area.innerHTML = `
     <div class="table-wrap">
       <table id="dept-report-table">
         <thead><tr>
@@ -465,45 +465,45 @@ function renderDeptTable(data) {
       <div class="pagination-controls" id="dept-pag"></div>
     </div>
   `;
-  buildPagination(document.getElementById('dept-pag'), deptPage, data.totalPages, (p) => { deptPage = p; loadDeptReport(); });
-}
-
-// ══ TAB 2: Age Report ══
-function onAgeActiveChange(v) { ageActiveFilter = v; agePage = 0; loadAgeReport(); }
-function onAgeSortChange(v) { ageSort = v; agePage = 0; loadAgeReport(); }
-let ageRangeTimer;
-function onAgeRangeChange() {
-  ageMin = document.getElementById('age-min').value;
-  ageMax = document.getElementById('age-max').value;
-  clearTimeout(ageRangeTimer);
-  ageRangeTimer = setTimeout(() => { agePage = 0; loadAgeReport(); }, 400);
-}
-
-async function loadAgeReport() {
-  const area = document.getElementById('age-table-area');
-  area.innerHTML = `<div class="loader inline-loader"><div class="spinner"></div> Loading…</div>`;
-  try {
-    const params = { page: agePage, size: PAGE_SIZE, sort: ageSort };
-    if (ageActiveFilter !== '') params.active = ageActiveFilter;
-    if (ageMin) params.minAge = ageMin;
-    if (ageMax) params.maxAge = ageMax;
-    const data = await api.employees.getByAge(params);
-    ageReportData = data;
-    renderAgeTable(data);
-    document.getElementById('age-count').textContent = `${data.totalElements} record${data.totalElements !== 1 ? 's' : ''}`;
-  } catch (err) {
-    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+    buildPagination(document.getElementById('dept-pag'), deptPage, data.totalPages, (p) => { deptPage = p; loadDeptReport(); });
   }
-}
 
-function renderAgeTable(data) {
-  const employees = data.content || [];
-  const area = document.getElementById('age-table-area');
-  if (!employees.length) {
-    area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◷</div><div class="empty-state-text">No employees found</div></div>`;
-    return;
+  // ══ TAB 2: Age Report ══
+  function onAgeActiveChange(v) { ageActiveFilter = v; agePage = 0; loadAgeReport(); }
+  function onAgeSortChange(v) { ageSort = v; agePage = 0; loadAgeReport(); }
+  let ageRangeTimer;
+  function onAgeRangeChange() {
+    ageMin = document.getElementById('age-min').value;
+    ageMax = document.getElementById('age-max').value;
+    clearTimeout(ageRangeTimer);
+    ageRangeTimer = setTimeout(() => { agePage = 0; loadAgeReport(); }, 400);
   }
-  area.innerHTML = `
+
+  async function loadAgeReport() {
+    const area = document.getElementById('age-table-area');
+    area.innerHTML = `<div class="loader inline-loader"><div class="spinner"></div> Loading…</div>`;
+    try {
+      const params = { page: agePage, size: PAGE_SIZE, sort: ageSort };
+      if (ageActiveFilter !== '') params.active = ageActiveFilter;
+      if (ageMin) params.minAge = ageMin;
+      if (ageMax) params.maxAge = ageMax;
+      const data = await api.employees.getByAge(params);
+      ageReportData = data;
+      renderAgeTable(data);
+      document.getElementById('age-count').textContent = `${data.totalElements} record${data.totalElements !== 1 ? 's' : ''}`;
+    } catch (err) {
+      area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+    }
+  }
+
+  function renderAgeTable(data) {
+    const employees = data.content || [];
+    const area = document.getElementById('age-table-area');
+    if (!employees.length) {
+      area.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◷</div><div class="empty-state-text">No employees found</div></div>`;
+      return;
+    }
+    area.innerHTML = `
     <div class="table-wrap">
       <table id="age-report-table">
         <thead><tr>
@@ -535,27 +535,27 @@ function renderAgeTable(data) {
       <div class="pagination-controls" id="age-pag"></div>
     </div>
   `;
-  buildPagination(document.getElementById('age-pag'), agePage, data.totalPages, (p) => { agePage = p; loadAgeReport(); });
-}
+    buildPagination(document.getElementById('age-pag'), agePage, data.totalPages, (p) => { agePage = p; loadAgeReport(); });
+  }
 
-// ══ TAB 3: Statistics ══
-async function loadStats() {
-  try {
-    const [employees, departments, avgSalAll, avgAgeAll, avgSalActive, avgAgeActive] = await Promise.all([
-      api.employees.getAll(),
-      api.departments.getAll(),
-      api.employees.avgSalary({}),
-      api.employees.avgAge({}),
-      api.employees.avgSalary({ active: true }),
-      api.employees.avgAge({ active: true }),
-    ]);
+  // ══ TAB 3: Statistics ══
+  async function loadStats() {
+    try {
+      const [employees, departments, avgSalAll, avgAgeAll, avgSalActive, avgAgeActive] = await Promise.all([
+        api.employees.getAll(),
+        api.departments.getAll(),
+        api.employees.avgSalary({}),
+        api.employees.avgAge({}),
+        api.employees.avgSalary({ active: true }),
+        api.employees.avgAge({ active: true }),
+      ]);
 
-    const active = employees.filter(e => e.active);
-    const inactive = employees.filter(e => !e.active);
-    const activeDepts = departments.filter(d => d.active);
+      const active = employees.filter(e => e.active);
+      const inactive = employees.filter(e => !e.active);
+      const activeDepts = departments.filter(d => d.active);
 
-    // Stats grid
-    document.getElementById('stats-grid').innerHTML = `
+      // Stats grid
+      document.getElementById('stats-grid').innerHTML = `
       <div class="stats-big-card">
         <div class="sbc-icon">◉</div>
         <div class="sbc-label">Total Employees</div>
@@ -582,24 +582,24 @@ async function loadStats() {
       </div>
     `;
 
-    // Department breakdown
-    const deptMap = {};
-    employees.forEach(e => {
-      if (!e.departmentName) return;
-      if (!deptMap[e.departmentName]) deptMap[e.departmentName] = { count: 0, salaries: [], ages: [] };
-      deptMap[e.departmentName].count++;
-      if (e.salary) deptMap[e.departmentName].salaries.push(Number(e.salary));
-      if (e.age) deptMap[e.departmentName].ages.push(e.age);
-    });
+      // Department breakdown
+      const deptMap = {};
+      employees.forEach(e => {
+        if (!e.departmentName) return;
+        if (!deptMap[e.departmentName]) deptMap[e.departmentName] = { count: 0, salaries: [], ages: [] };
+        deptMap[e.departmentName].count++;
+        if (e.salary) deptMap[e.departmentName].salaries.push(Number(e.salary));
+        if (e.age) deptMap[e.departmentName].ages.push(e.age);
+      });
 
-    const maxCount = Math.max(...Object.values(deptMap).map(d => d.count), 1);
-    const sortedDepts = Object.entries(deptMap).sort((a, b) => b[1].count - a[1].count);
+      const maxCount = Math.max(...Object.values(deptMap).map(d => d.count), 1);
+      const sortedDepts = Object.entries(deptMap).sort((a, b) => b[1].count - a[1].count);
 
-    document.getElementById('dept-breakdown').innerHTML = sortedDepts.length ? sortedDepts.map(([name, d]) => {
-      const pct = Math.round((d.count / maxCount) * 100);
-      const avgSal = d.salaries.length ? formatCurrency(d.salaries.reduce((a,b)=>a+b,0)/d.salaries.length) : '—';
-      const avgAge = d.ages.length ? Math.round(d.ages.reduce((a,b)=>a+b,0)/d.ages.length) : '—';
-      return `
+      document.getElementById('dept-breakdown').innerHTML = sortedDepts.length ? sortedDepts.map(([name, d]) => {
+        const pct = Math.round((d.count / maxCount) * 100);
+        const avgSal = d.salaries.length ? formatCurrency(d.salaries.reduce((a,b)=>a+b,0)/d.salaries.length) : '—';
+        const avgAge = d.ages.length ? Math.round(d.ages.reduce((a,b)=>a+b,0)/d.ages.length) : '—';
+        return `
         <div class="dept-stat-row">
           <div class="dept-stat-name">${name}</div>
           <div class="dept-stat-bar-wrap">
@@ -611,26 +611,26 @@ async function loadStats() {
           </div>
         </div>
       `;
-    }).join('') : '<div class="empty-state"><div class="empty-state-text">No data</div></div>';
+      }).join('') : '<div class="empty-state"><div class="empty-state-text">No data</div></div>';
 
-    // Age distribution (buckets)
-    const buckets = { '< 25': 0, '25–34': 0, '35–44': 0, '45–54': 0, '55+': 0 };
-    employees.forEach(e => {
-      const a = e.age;
-      if (!a) return;
-      if (a < 25) buckets['< 25']++;
-      else if (a < 35) buckets['25–34']++;
-      else if (a < 45) buckets['35–44']++;
-      else if (a < 55) buckets['45–54']++;
-      else buckets['55+']++;
-    });
+      // Age distribution (buckets)
+      const buckets = { '< 25': 0, '25–34': 0, '35–44': 0, '45–54': 0, '55+': 0 };
+      employees.forEach(e => {
+        const a = e.age;
+        if (!a) return;
+        if (a < 25) buckets['< 25']++;
+        else if (a < 35) buckets['25–34']++;
+        else if (a < 45) buckets['35–44']++;
+        else if (a < 55) buckets['45–54']++;
+        else buckets['55+']++;
+      });
 
-    const maxBucket = Math.max(...Object.values(buckets), 1);
-    document.getElementById('age-distribution').innerHTML = `
+      const maxBucket = Math.max(...Object.values(buckets), 1);
+      document.getElementById('age-distribution').innerHTML = `
       <div class="age-chart">
         ${Object.entries(buckets).map(([label, count]) => {
-          const pct = Math.round((count / maxBucket) * 100);
-          return `
+        const pct = Math.round((count / maxBucket) * 100);
+        return `
             <div class="age-bar-row">
               <div class="age-bar-label">${label}</div>
               <div class="age-bar-track">
@@ -639,331 +639,438 @@ async function loadStats() {
               <div class="age-bar-count">${count}</div>
             </div>
           `;
-        }).join('')}
+      }).join('')}
       </div>
     `;
 
-    // Store for PDF
-    window._statsSnapshot = { employees, departments, avgSalAll, avgAgeAll, avgSalActive, avgAgeActive, deptMap, sortedDepts, buckets };
+      // Store for PDF
+      window._statsSnapshot = { employees, departments, avgSalAll, avgAgeAll, avgSalActive, avgAgeActive, deptMap, sortedDepts, buckets };
 
-  } catch (err) {
-    document.getElementById('stats-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+    } catch (err) {
+      document.getElementById('stats-grid').innerHTML = `<div class="empty-state" style="grid-column:1/-1"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
+    }
   }
-}
 
-// ══ Add missing API methods ══
-api.employees.getByDepartment = (deptId, params) => {
-  const q = new URLSearchParams(params).toString();
-  return api.get(`/employees/report/department/${deptId}/paged?${q}`);
-};
-api.employees.getByAge = (params) => {
-  const q = new URLSearchParams(params).toString();
-  return api.get(`/employees/report/age/paged?${q}`);
-};
-
-// ══ CSV Helpers ══
-function toCSV(rows, headers) {
-  const escape = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
-  return [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
-}
-
-function downloadCSV(csv, filename) {
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const a = document.createElement('a');
-  a.href = URL.createObjectURL(blob);
-  a.download = filename;
-  a.click();
-}
-
-function exportDeptCSV() {
-  const rows = (deptReportData.content || []).map(e => [
-    e.employeeId, e.fullName, e.dateOfBirth || '', e.age ?? '', e.departmentName || '', e.salary ?? '', e.active ? 'Active' : 'Inactive'
-  ]);
-  downloadCSV(toCSV(rows, ['Employee ID','Full Name','Date of Birth','Age','Department','Salary','Status']), 'report-by-department.csv');
-  showToast('CSV downloaded', 'success');
-}
-
-function exportAgeCSV() {
-  const rows = (ageReportData.content || []).map(e => [
-    e.employeeId, e.fullName, e.age ?? '', e.dateOfBirth || '', e.departmentName || '', e.salary ?? '', e.active ? 'Active' : 'Inactive'
-  ]);
-  downloadCSV(toCSV(rows, ['Employee ID','Full Name','Age','Date of Birth','Department','Salary','Status']), 'report-by-age.csv');
-  showToast('CSV downloaded', 'success');
-}
-
-// ══ PDF Exports ══
-function pdfHeader(doc, title) {
-  const { jsPDF } = window.jspdf;
-  const pageW = doc.internal.pageSize.getWidth();
-  // Dark header bar
-  doc.setFillColor(10, 10, 20);
-  doc.rect(0, 0, pageW, 28, 'F');
-
-  // Accent line
-  doc.setFillColor(124, 111, 255);
-  doc.rect(0, 26, pageW, 2, 'F');
-
-  // Logo text
-  doc.setTextColor(255, 255, 255);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(16);
-  doc.text('💼 EmpTrack', 14, 17);
-
-  // Title right
-  doc.setFontSize(10);
-  doc.setFont('helvetica', 'normal');
-  doc.setTextColor(180, 180, 210);
-  doc.text(title, pageW - 14, 17, { align: 'right' });
-
-  // Generated date
-  doc.setFontSize(8);
-  doc.setTextColor(140, 140, 170);
-  doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 38);
-
-  return 44; // y offset after header
-}
-
-function pdfFooter(doc) {
-  const pageCount = doc.internal.getNumberOfPages();
-  const pageW = doc.internal.pageSize.getWidth();
-  const pageH = doc.internal.pageSize.getHeight();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFillColor(15, 15, 28);
-    doc.rect(0, pageH - 12, pageW, 12, 'F');
-    doc.setTextColor(100, 100, 140);
-    doc.setFontSize(8);
-    doc.setFont('helvetica', 'normal');
-    doc.text('EmpTrack HR System — Confidential', 14, pageH - 4);
-    doc.text(`Page ${i} / ${pageCount}`, pageW - 14, pageH - 4, { align: 'right' });
-  }
-}
-
-function tableStyles() {
-  return {
-    styles: {
-      fontSize: 9,
-      cellPadding: 4,
-      textColor: [220, 220, 235],
-      lineColor: [40, 40, 60],
-      lineWidth: 0.3,
-    },
-    headStyles: {
-      fillColor: [20, 18, 40],
-      textColor: [170, 160, 255],
-      fontStyle: 'bold',
-      fontSize: 8,
-      halign: 'left',
-    },
-    alternateRowStyles: { fillColor: [18, 18, 28] },
-    bodyStyles: { fillColor: [13, 13, 22] },
-    tableLineColor: [40, 40, 60],
-    tableLineWidth: 0.3,
+  // ══ Add missing API methods ══
+  api.employees.getByDepartment = (deptId, params) => {
+    const q = new URLSearchParams(params).toString();
+    return api.get(`/employees/report/department/${deptId}/paged?${q}`);
   };
-}
+  api.employees.getByAge = (params) => {
+    const q = new URLSearchParams(params).toString();
+    return api.get(`/employees/report/age/paged?${q}`);
+  };
 
-function exportDeptPDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const startY = pdfHeader(doc, 'Employee Report — By Department');
+  // ══ CSV Helpers ══
+  function toCSV(rows, headers) {
+    const escape = v => `"${String(v ?? '').replace(/"/g,'""')}"`;
+    return [headers.map(escape).join(','), ...rows.map(r => r.map(escape).join(','))].join('\n');
+  }
 
-  const deptName = deptFilter
-    ? (allDepartments.find(d => String(d.id) === String(deptFilter))?.name || 'Selected Department')
-    : 'All Departments';
-  const statusLabel = deptActiveFilter === 'true' ? 'Active Only' : deptActiveFilter === 'false' ? 'Inactive Only' : 'All Status';
+  function downloadCSV(csv, filename) {
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+  }
 
-  doc.setTextColor(180, 180, 210);
-  doc.setFontSize(9);
-  doc.text(`Department: ${deptName}  |  Status: ${statusLabel}  |  Records: ${deptReportData.totalElements}`, 14, startY);
+  function exportDeptCSV() {
+    const rows = (deptReportData.content || []).map(e => [
+      e.employeeId, e.fullName, e.dateOfBirth || '', e.age ?? '', e.departmentName || '', e.salary ?? '', e.active ? 'Active' : 'Inactive'
+    ]);
+    downloadCSV(toCSV(rows, ['Employee ID','Full Name','Date of Birth','Age','Department','Salary','Status']), 'report-by-department.csv');
+    showToast('CSV downloaded', 'success');
+  }
 
-  const rows = (deptReportData.content || []).map(e => [
-    `#${e.employeeId}`,
-    e.fullName,
-    e.dateOfBirth || '—',
-    e.age ?? '—',
-    e.departmentName || '—',
-    formatCurrency(e.salary),
-    e.active ? 'Active' : 'Inactive',
-  ]);
+  function exportAgeCSV() {
+    const rows = (ageReportData.content || []).map(e => [
+      e.employeeId, e.fullName, e.age ?? '', e.dateOfBirth || '', e.departmentName || '', e.salary ?? '', e.active ? 'Active' : 'Inactive'
+    ]);
+    downloadCSV(toCSV(rows, ['Employee ID','Full Name','Age','Date of Birth','Department','Salary','Status']), 'report-by-age.csv');
+    showToast('CSV downloaded', 'success');
+  }
 
-  doc.autoTable({
-    startY: startY + 6,
-    head: [['Emp ID', 'Full Name', 'Date of Birth', 'Age', 'Department', 'Salary', 'Status']],
-    body: rows,
-    ...tableStyles(),
-    columnStyles: {
-      0: { cellWidth: 20 },
-      5: { halign: 'right' },
-      6: { halign: 'center' },
-    },
-    didParseCell(data) {
-      if (data.section === 'body' && data.column.index === 6) {
-        data.cell.styles.textColor = data.cell.raw === 'Active' ? [82, 214, 138] : [255, 107, 107];
-        data.cell.styles.fontStyle = 'bold';
-      }
-    },
-    margin: { left: 14, right: 14 },
-  });
+  // ══ PDF Exports ══
+  // jsPDF's built-in helvetica cannot render ₱ — use "PHP" prefix instead
+  function formatCurrencyPDF(value) {
+    if (value == null || value === '' || isNaN(Number(value))) return '—';
+    return 'PHP ' + Number(value).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  }
 
-  pdfFooter(doc);
-  doc.save(`emptrack-report-by-department-${Date.now()}.pdf`);
-  showToast('PDF exported', 'success');
-}
+  function pdfHeader(doc, title) {
+    const { jsPDF } = window.jspdf;
+    const pageW = doc.internal.pageSize.getWidth();
+    // Dark header bar
+    doc.setFillColor(10, 10, 20);
+    doc.rect(0, 0, pageW, 28, 'F');
 
-function exportAgePDF() {
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-  const startY = pdfHeader(doc, 'Employee Report — By Age');
-
-  const statusLabel = ageActiveFilter === 'true' ? 'Active Only' : ageActiveFilter === 'false' ? 'Inactive Only' : 'All Status';
-  const sortLabel = ageSort === 'asc' ? 'Youngest First' : 'Oldest First';
-  const rangeLabel = (ageMin || ageMax) ? `Age ${ageMin || '?'} – ${ageMax || '?'}` : 'All Ages';
-
-  doc.setTextColor(180, 180, 210);
-  doc.setFontSize(9);
-  doc.text(`Sort: ${sortLabel}  |  ${rangeLabel}  |  Status: ${statusLabel}  |  Records: ${ageReportData.totalElements}`, 14, startY);
-
-  const rows = (ageReportData.content || []).map(e => [
-    `#${e.employeeId}`,
-    e.fullName,
-    e.age ?? '—',
-    e.dateOfBirth || '—',
-    e.departmentName || '—',
-    formatCurrency(e.salary),
-    e.active ? 'Active' : 'Inactive',
-  ]);
-
-  doc.autoTable({
-    startY: startY + 6,
-    head: [['Emp ID', 'Full Name', 'Age', 'Date of Birth', 'Department', 'Salary', 'Status']],
-    body: rows,
-    ...tableStyles(),
-    columnStyles: {
-      0: { cellWidth: 20 },
-      2: { halign: 'center', fontStyle: 'bold', textColor: [124, 111, 255] },
-      5: { halign: 'right' },
-      6: { halign: 'center' },
-    },
-    didParseCell(data) {
-      if (data.section === 'body' && data.column.index === 6) {
-        data.cell.styles.textColor = data.cell.raw === 'Active' ? [82, 214, 138] : [255, 107, 107];
-        data.cell.styles.fontStyle = 'bold';
-      }
-    },
-    margin: { left: 14, right: 14 },
-  });
-
-  pdfFooter(doc);
-  doc.save(`emptrack-report-by-age-${Date.now()}.pdf`);
-  showToast('PDF exported', 'success');
-}
-
-function exportStatsPDF() {
-  const s = window._statsSnapshot;
-  if (!s) { showToast('Statistics not loaded yet', 'error'); return; }
-
-  const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const pageW = doc.internal.pageSize.getWidth();
-  let y = pdfHeader(doc, 'Statistics Report');
-
-  // ── Summary boxes ──
-  doc.setFontSize(12);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(200, 200, 220);
-  doc.text('Summary', 14, y + 4);
-  y += 10;
-
-  const boxes = [
-    { label: 'Total Employees', value: s.employees.length },
-    { label: 'Active', value: s.employees.filter(e => e.active).length },
-    { label: 'Inactive', value: s.employees.filter(e => !e.active).length },
-    { label: 'Departments', value: s.departments.filter(d => d.active).length },
-  ];
-
-  const boxW = (pageW - 28 - 9) / 4;
-  boxes.forEach((b, i) => {
-    const x = 14 + i * (boxW + 3);
-    doc.setFillColor(20, 18, 40);
-    doc.roundedRect(x, y, boxW, 18, 2, 2, 'F');
+    // Accent line
     doc.setFillColor(124, 111, 255);
-    doc.rect(x, y + 16, boxW, 2, 'F');
-    doc.setTextColor(140, 140, 180);
-    doc.setFontSize(7);
-    doc.setFont('helvetica', 'normal');
-    doc.text(b.label.toUpperCase(), x + boxW / 2, y + 6, { align: 'center' });
-    doc.setTextColor(220, 220, 240);
+    doc.rect(0, 26, pageW, 2, 'F');
+
+    // Logo text
+    // Logo icon — drawn as a small purple rounded square with "ET" initials
+    doc.setFillColor(124, 111, 255);
+    doc.roundedRect(14, 6, 16, 16, 2, 2, 'F');
+    doc.setTextColor(255, 255, 255);
+    doc.setFont('helvetica', 'bold');
+    doc.setFontSize(8);
+    doc.text('ET', 22, 16, { align: 'center' });
+
+    // Brand name
     doc.setFontSize(16);
     doc.setFont('helvetica', 'bold');
-    doc.text(String(b.value), x + boxW / 2, y + 14, { align: 'center' });
-  });
-  y += 24;
+    doc.setTextColor(255, 255, 255);
+    doc.text('EmpTrack', 34, 17);
 
-  // ── Salary & Age ──
-  const metricsLeft = [
-    ['Avg Salary (All)', s.avgSalAll ? formatCurrency(s.avgSalAll) : '—'],
-    ['Avg Salary (Active)', s.avgSalActive ? formatCurrency(s.avgSalActive) : '—'],
-    ['Avg Age (All)', s.avgAgeAll ? `${Math.round(s.avgAgeAll)} yrs` : '—'],
-    ['Avg Age (Active)', s.avgAgeActive ? `${Math.round(s.avgAgeActive)} yrs` : '—'],
-  ];
+    // Subtitle tag "HR System" in muted color
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(150, 140, 200);
+    doc.text('HR SYSTEM', 34, 22);
 
-  doc.autoTable({
-    startY: y,
-    head: [['Metric', 'Value']],
-    body: metricsLeft,
-    ...tableStyles(),
-    columnStyles: { 1: { halign: 'right', fontStyle: 'bold', textColor: [124, 111, 255] } },
-    tableWidth: 80,
-    margin: { left: 14, right: pageW - 94 },
-  });
+    // Title right — report name
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(200, 190, 255);
+    doc.text(title, pageW - 14, 17, { align: 'right' });
 
-  // ── Department breakdown table ──
-  const deptRows = s.sortedDepts.map(([name, d]) => {
-    const avgSal = d.salaries.length ? formatCurrency(d.salaries.reduce((a,b)=>a+b,0)/d.salaries.length) : '—';
-    const avgAge = d.ages.length ? Math.round(d.ages.reduce((a,b)=>a+b,0)/d.ages.length) : '—';
-    return [name, d.count, avgSal, avgAge];
-  });
+    // Generated date
+    doc.setFontSize(8);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(140, 140, 170);
+    doc.text(`Generated: ${new Date().toLocaleString()}`, 14, 38);
 
-  doc.autoTable({
-    startY: y,
-    head: [['Department', 'Employees', 'Avg Salary', 'Avg Age']],
-    body: deptRows,
-    ...tableStyles(),
-    columnStyles: {
-      1: { halign: 'center' },
-      2: { halign: 'right' },
-      3: { halign: 'center' },
-    },
-    tableWidth: pageW - 98 - 14,
-    margin: { left: 98, right: 14 },
-  });
+    return 44; // y offset after header
+  }
 
-  y = Math.max(doc.lastAutoTable.finalY, y + 50) + 10;
+  function pdfFooter(doc) {
+    const pageCount = doc.internal.getNumberOfPages();
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i);
+      doc.setFillColor(15, 15, 28);
+      doc.rect(0, pageH - 12, pageW, 12, 'F');
+      doc.setTextColor(100, 100, 140);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'normal');
+      doc.text('EmpTrack HR System — Confidential', 14, pageH - 4);
+      doc.text(`Page ${i} / ${pageCount}`, pageW - 14, pageH - 4, { align: 'right' });
+    }
+  }
 
-  // ── Age distribution ──
-  doc.setFontSize(11);
-  doc.setFont('helvetica', 'bold');
-  doc.setTextColor(200, 200, 220);
-  doc.text('Age Distribution', 14, y);
-  y += 6;
+  function tableStyles() {
+    return {
+      styles: {
+        fontSize: 9,
+        cellPadding: 4,
+        textColor: [220, 220, 235],
+        lineColor: [40, 40, 60],
+        lineWidth: 0.3,
+      },
+      headStyles: {
+        fillColor: [20, 18, 40],
+        textColor: [170, 160, 255],
+        fontStyle: 'bold',
+        fontSize: 8,
+        halign: 'left',
+      },
+      alternateRowStyles: { fillColor: [18, 18, 28] },
+      bodyStyles: { fillColor: [13, 13, 22] },
+      tableLineColor: [40, 40, 60],
+      tableLineWidth: 0.3,
+    };
+  }
 
-  const bucketRows = Object.entries(s.buckets).map(([label, count]) => [label, count, `${Math.round((count / s.employees.length) * 100)}%`]);
-  doc.autoTable({
-    startY: y,
-    head: [['Age Group', 'Count', 'Share']],
-    body: bucketRows,
-    ...tableStyles(),
-    columnStyles: { 1: { halign: 'center' }, 2: { halign: 'center' } },
-    tableWidth: 80,
-    margin: { left: 14 },
-  });
+  function exportDeptPDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const startY = pdfHeader(doc, 'Employee Report — By Department');
 
-  pdfFooter(doc);
-  doc.save(`emptrack-statistics-report-${Date.now()}.pdf`);
-  showToast('Statistics PDF exported', 'success');
-}
+    const deptName = deptFilter
+            ? (allDepartments.find(d => String(d.id) === String(deptFilter))?.name || 'Selected Department')
+            : 'All Departments';
+    const statusLabel = deptActiveFilter === 'true' ? 'Active Only' : deptActiveFilter === 'false' ? 'Inactive Only' : 'All Status';
 
-init();
+    doc.setTextColor(180, 180, 210);
+    doc.setFontSize(9);
+    doc.text(`Department: ${deptName}  |  Status: ${statusLabel}  |  Records: ${deptReportData.totalElements}`, 14, startY);
+
+    const rows = (deptReportData.content || []).map(e => [
+      `#${e.employeeId}`,
+      e.fullName,
+      e.dateOfBirth || '—',
+      e.age ?? '—',
+      e.departmentName || '—',
+      formatCurrencyPDF(e.salary),
+      e.active ? 'Active' : 'Inactive',
+    ]);
+
+    doc.autoTable({
+      startY: startY + 6,
+      head: [['Emp ID', 'Full Name', 'Date of Birth', 'Age', 'Department', 'Salary', 'Status']],
+      body: rows,
+      ...tableStyles(),
+      columnStyles: {
+        0: { cellWidth: 20 },
+        5: { halign: 'right' },
+        6: { halign: 'center' },
+      },
+      didParseCell(data) {
+        if (data.section === 'body' && data.column.index === 6) {
+          data.cell.styles.textColor = data.cell.raw === 'Active' ? [82, 214, 138] : [255, 107, 107];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    pdfFooter(doc);
+    doc.save(`emptrack-report-by-department-${Date.now()}.pdf`);
+    showToast('PDF exported', 'success');
+  }
+
+  function exportAgePDF() {
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+    const startY = pdfHeader(doc, 'Employee Report — By Age');
+
+    const statusLabel = ageActiveFilter === 'true' ? 'Active Only' : ageActiveFilter === 'false' ? 'Inactive Only' : 'All Status';
+    const sortLabel = ageSort === 'asc' ? 'Youngest First' : 'Oldest First';
+    const rangeLabel = (ageMin || ageMax) ? `Age ${ageMin || '?'} – ${ageMax || '?'}` : 'All Ages';
+
+    doc.setTextColor(180, 180, 210);
+    doc.setFontSize(9);
+    doc.text(`Sort: ${sortLabel}  |  ${rangeLabel}  |  Status: ${statusLabel}  |  Records: ${ageReportData.totalElements}`, 14, startY);
+
+    const rows = (ageReportData.content || []).map(e => [
+      `#${e.employeeId}`,
+      e.fullName,
+      e.age ?? '—',
+      e.dateOfBirth || '—',
+      e.departmentName || '—',
+      formatCurrencyPDF(e.salary),
+      e.active ? 'Active' : 'Inactive',
+    ]);
+
+    doc.autoTable({
+      startY: startY + 6,
+      head: [['Emp ID', 'Full Name', 'Age', 'Date of Birth', 'Department', 'Salary', 'Status']],
+      body: rows,
+      ...tableStyles(),
+      columnStyles: {
+        0: { cellWidth: 20 },
+        2: { halign: 'center', fontStyle: 'bold', textColor: [124, 111, 255] },
+        5: { halign: 'right' },
+        6: { halign: 'center' },
+      },
+      didParseCell(data) {
+        if (data.section === 'body' && data.column.index === 6) {
+          data.cell.styles.textColor = data.cell.raw === 'Active' ? [82, 214, 138] : [255, 107, 107];
+          data.cell.styles.fontStyle = 'bold';
+        }
+      },
+      margin: { left: 14, right: 14 },
+    });
+
+    pdfFooter(doc);
+    doc.save(`emptrack-report-by-age-${Date.now()}.pdf`);
+    showToast('PDF exported', 'success');
+  }
+
+  function exportStatsPDF() {
+    const s = window._statsSnapshot;
+    if (!s) { showToast('Statistics not loaded yet', 'error'); return; }
+
+    const { jsPDF } = window.jspdf;
+    const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const contentW = pageW - margin * 2;
+    let y = pdfHeader(doc, 'Statistics Report');
+
+    // ── Helper: section header with left accent bar ──
+    function sectionHeader(label, yPos) {
+      doc.setFillColor(124, 111, 255);
+      doc.rect(margin, yPos, 3, 5, 'F');
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.setTextColor(210, 205, 255);
+      doc.text(label, margin + 6, yPos + 4);
+      return yPos + 10;
+    }
+
+    // ══ SECTION 1: Summary KPI boxes (2 rows × 2 cols for better spacing) ══
+    y = sectionHeader('Overview', y);
+
+    const activeCount   = s.employees.filter(e => e.active).length;
+    const inactiveCount = s.employees.filter(e => !e.active).length;
+    const activeDepts   = s.departments.filter(d => d.active).length;
+
+    const kpis = [
+      { label: 'TOTAL EMPLOYEES', value: String(s.employees.length),         sub: `${activeCount} active  /  ${inactiveCount} inactive`, accent: [124, 111, 255] },
+      { label: 'ACTIVE DEPARTMENTS', value: String(activeDepts),             sub: `${s.departments.length} total departments`,            accent: [82, 214, 138]  },
+      { label: 'AVG SALARY (ALL)',    value: s.avgSalAll    ? formatCurrencyPDF(s.avgSalAll)    : '—', sub: `Active: ${s.avgSalActive ? formatCurrencyPDF(s.avgSalActive) : '—'}`, accent: [255, 180, 80]  },
+      { label: 'AVG AGE (ALL)',       value: s.avgAgeAll    ? `${Math.round(s.avgAgeAll)} yrs`  : '—', sub: `Active: ${s.avgAgeActive ? `${Math.round(s.avgAgeActive)} yrs` : '—'}`, accent: [100, 210, 255] },
+    ];
+
+    const boxW = (contentW - 6) / 2;
+    const boxH = 22;
+    kpis.forEach((k, i) => {
+      const col = i % 2;
+      const row = Math.floor(i / 2);
+      const x   = margin + col * (boxW + 6);
+      const by  = y + row * (boxH + 4);
+
+      // Card background
+      doc.setFillColor(18, 16, 36);
+      doc.roundedRect(x, by, boxW, boxH, 2, 2, 'F');
+
+      // Left accent strip
+      doc.setFillColor(...k.accent);
+      doc.roundedRect(x, by, 3, boxH, 1, 1, 'F');
+
+      // Label
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(140, 135, 180);
+      doc.text(k.label, x + 8, by + 6);
+
+      // Value
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(15);
+      doc.setTextColor(...k.accent);
+      doc.text(k.value, x + 8, by + 15);
+
+      // Sub text
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
+      doc.setTextColor(110, 108, 150);
+      doc.text(k.sub, x + 8, by + 20);
+    });
+
+    y += (Math.ceil(kpis.length / 2)) * (boxH + 4) + 10;
+
+    // ══ SECTION 2: Department Breakdown ══
+    y = sectionHeader('Department Breakdown', y);
+
+    const deptRows = s.sortedDepts.map(([name, d], idx) => {
+      const avgSal = d.salaries.length
+              ? formatCurrencyPDF(d.salaries.reduce((a, b) => a + b, 0) / d.salaries.length)
+              : '—';
+      const avgAge = d.ages.length
+              ? Math.round(d.ages.reduce((a, b) => a + b, 0) / d.ages.length)
+              : '—';
+      return [String(idx + 1), name, String(d.count), avgSal, String(avgAge)];
+    });
+
+    doc.autoTable({
+      startY: y,
+      head: [['#', 'Department', 'Employees', 'Avg Salary', 'Avg Age']],
+      body: deptRows,
+      ...tableStyles(),
+      columnStyles: {
+        0: { cellWidth: 8,  halign: 'center', textColor: [100, 95, 150] },
+        1: { cellWidth: 60 },
+        2: { cellWidth: 24, halign: 'center', fontStyle: 'bold', textColor: [82, 214, 138] },
+        3: { halign: 'right', textColor: [255, 180, 80] },
+        4: { cellWidth: 20, halign: 'center', textColor: [100, 210, 255] },
+      },
+      didParseCell(data) {
+        // Zebra accent on employee count column
+        if (data.section === 'body' && data.column.index === 1) {
+          data.cell.styles.fontStyle = 'bold';
+          data.cell.styles.textColor = [220, 218, 255];
+        }
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    y = doc.lastAutoTable.finalY + 12;
+
+    // ══ SECTION 3: Age Distribution ══
+    y = sectionHeader('Age Distribution', y);
+
+    const total = s.employees.length || 1;
+    const bucketEntries = Object.entries(s.buckets);
+    const maxBucketVal  = Math.max(...bucketEntries.map(([, c]) => c), 1);
+
+    // Draw custom bar chart rows
+    const barTrackW = contentW - 52; // label(20) + count(12) + pct(12) + gaps
+    const barH = 7;
+    const barGap = 4;
+
+    bucketEntries.forEach(([label, count], i) => {
+      const by   = y + i * (barH + barGap);
+      const pct  = count / total;
+      const barW = (count / maxBucketVal) * barTrackW;
+      const share = Math.round(pct * 100);
+
+      // Age group label
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(8);
+      doc.setTextColor(160, 155, 200);
+      doc.text(label, margin, by + barH - 1);
+
+      // Track background
+      doc.setFillColor(22, 20, 42);
+      doc.roundedRect(margin + 22, by, barTrackW, barH, 1, 1, 'F');
+
+      // Bar fill — gradient-like: left darker purple → right accent purple
+      if (count > 0) {
+        doc.setFillColor(80, 68, 180);
+        doc.roundedRect(margin + 22, by, barW * 0.5, barH, 1, 1, 'F');
+        doc.setFillColor(124, 111, 255);
+        doc.roundedRect(margin + 22 + barW * 0.5, by, Math.max(barW * 0.5, 0.1), barH, 1, 1, 'F');
+      }
+
+      // Count inside bar (if wide enough) or after
+      if (barW > 12) {
+        doc.setFont('helvetica', 'bold');
+        doc.setFontSize(7);
+        doc.setTextColor(255, 255, 255);
+        doc.text(String(count), margin + 22 + barW - 3, by + barH - 1.5, { align: 'right' });
+      }
+
+      // Share % on right
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(7.5);
+      doc.setTextColor(140, 135, 180);
+      doc.text(`${share}%`, margin + 22 + barTrackW + 4, by + barH - 1.5);
+    });
+
+    y += bucketEntries.length * (barH + barGap) + 14;
+
+    // ══ SECTION 4: Averages summary strip ══
+    y = sectionHeader('Key Metrics', y);
+
+    const metricsData = [
+      ['Avg Salary — All Employees',  s.avgSalAll    ? formatCurrencyPDF(s.avgSalAll)                : '—'],
+      ['Avg Salary — Active Only',    s.avgSalActive ? formatCurrencyPDF(s.avgSalActive)             : '—'],
+      ['Avg Age — All Employees',     s.avgAgeAll    ? `${Math.round(s.avgAgeAll)} years old`        : '—'],
+      ['Avg Age — Active Only',       s.avgAgeActive ? `${Math.round(s.avgAgeActive)} years old`     : '—'],
+    ];
+
+    doc.autoTable({
+      startY: y,
+      head: [['Metric', 'Value']],
+      body: metricsData,
+      ...tableStyles(),
+      columnStyles: {
+        0: { cellWidth: 100 },
+        1: { halign: 'right', fontStyle: 'bold', textColor: [124, 111, 255] },
+      },
+      margin: { left: margin, right: margin },
+    });
+
+    pdfFooter(doc);
+    doc.save(`emptrack-statistics-report-${Date.now()}.pdf`);
+    showToast('Statistics PDF exported', 'success');
+  }
+
+  init();
 </script>
 </body>
 </html>
