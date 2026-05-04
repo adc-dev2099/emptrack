@@ -7,29 +7,43 @@
   <link rel="stylesheet" href="css/main.css" />
 </head>
 <body>
+
 <script src="js/api.js"></script>
 <script src="js/utils.js"></script>
 <script src="js/shell.js"></script>
+
 <script>
-if (!requireAuth()) throw '';
-buildShell({ page: 'departments', title: 'Departments' });
+  if (!requireAuth()) throw '';
+  buildShell({ page: 'departments', title: 'Departments' });
 
-let editingId = null;
-let allDepts = [];
+  // ── STATE ──
+  let editingId = null;
+  let allDepts = [];
 
-const body = document.getElementById('page-body');
-const actions = document.getElementById('topbar-actions');
+  let currentPage = 0;
+  let pageSize = 5;
+  let totalPages = 0;
 
-actions.innerHTML = `<button class="btn btn-primary" onclick="openAddModal()">＋ Add Department</button>`;
+  let currentFilter = '';
+  let currentSearch = '';
 
-body.innerHTML = `
+  // ── UI INIT ──
+  const body = document.getElementById('page-body');
+  const actions = document.getElementById('topbar-actions');
+
+  actions.innerHTML = `<button class="btn btn-primary" onclick="openAddModal()">＋ Add Department</button>`;
+
+  body.innerHTML = `
   <div class="page-section">
     <div class="search-row">
       <div class="search-wrap">
         <span class="search-icon">⌕</span>
-        <input class="search-input" id="search-input" placeholder="Search departments…" oninput="renderTable(this.value)" />
+        <input class="search-input" id="search-input"
+          placeholder="Search departments…"
+          oninput="renderTable(this.value)" />
       </div>
-      <select class="filter-select" onchange="filterStatus(this.value)" id="status-filter">
+
+      <select class="filter-select" onchange="filterStatus(this.value)">
         <option value="">All Status</option>
         <option value="active">Active</option>
         <option value="inactive">Inactive</option>
@@ -41,19 +55,21 @@ body.innerHTML = `
     </div>
   </div>
 
-  <!-- Modal -->
+  <!-- MODAL -->
   <div class="modal-backdrop" id="dept-modal">
     <div class="modal" style="max-width:420px">
       <div class="modal-header">
         <span class="modal-title" id="dept-modal-title">Add Department</span>
         <button class="modal-close" onclick="closeModal('dept-modal')">✕</button>
       </div>
+
       <div class="modal-body">
         <div class="form-group">
           <label class="form-label">Department Name</label>
           <input class="form-input" id="d-name" placeholder="e.g. Engineering" />
         </div>
       </div>
+
       <div class="modal-footer">
         <button class="btn btn-ghost" onclick="closeModal('dept-modal')">Cancel</button>
         <button class="btn btn-primary" id="dept-save-btn" onclick="saveDept()">Save</button>
@@ -62,53 +78,85 @@ body.innerHTML = `
   </div>
 `;
 
-let currentFilter = '';
-let currentSearch = '';
-
-async function loadDepts() {
-  try {
-    allDepts = await api.departments.getAll();
-    renderTable();
-  } catch (err) {
-    document.getElementById('dept-card').innerHTML = `<div class="empty-state"><div class="empty-state-icon">⚠</div><div class="empty-state-text">${err.message}</div></div>`;
-  }
-}
-
-function renderTable(search) {
-  if (search !== undefined) currentSearch = search.toLowerCase();
-  const card = document.getElementById('dept-card');
-  let data = allDepts;
-  if (currentSearch) data = data.filter(d => d.name.toLowerCase().includes(currentSearch));
-  if (currentFilter === 'active') data = data.filter(d => d.active);
-  if (currentFilter === 'inactive') data = data.filter(d => !d.active);
-
-  if (!data.length) {
-    card.innerHTML = `<div class="empty-state"><div class="empty-state-icon">◫</div><div class="empty-state-text">No departments found</div></div>`;
-    return;
+  // ── LOAD DATA ──
+  async function loadDepts() {
+    try {
+      allDepts = await api.departments.getAll();
+      renderTable();
+    } catch (err) {
+      document.getElementById('dept-card').innerHTML =
+              `<div class="empty-state">
+        <div class="empty-state-icon">⚠</div>
+        <div class="empty-state-text">${err.message}</div>
+      </div>`;
+    }
   }
 
-  card.innerHTML = `
+  // ── RENDER TABLE + PAGINATION ──
+  function renderTable(search) {
+    if (search !== undefined) {
+      currentSearch = search.toLowerCase();
+      currentPage = 0;
+    }
+
+    const card = document.getElementById('dept-card');
+    let data = allDepts;
+
+    if (currentSearch) {
+      data = data.filter(d =>
+              d.name.toLowerCase().includes(currentSearch)
+      );
+    }
+
+    if (currentFilter === 'active') {
+      data = data.filter(d => d.active);
+    } else if (currentFilter === 'inactive') {
+      data = data.filter(d => !d.active);
+    }
+
+    totalPages = Math.ceil(data.length / pageSize);
+
+    if (!data.length) {
+      card.innerHTML = `
+      <div class="empty-state">
+        <div class="empty-state-icon">◫</div>
+        <div class="empty-state-text">No departments found</div>
+      </div>`;
+      return;
+    }
+
+    const start = currentPage * pageSize;
+    const pageData = data.slice(start, start + pageSize);
+
+    card.innerHTML = `
     <div class="table-wrap">
       <table>
-        <thead><tr>
-          <th>ID</th>
-          <th>Name</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr></thead>
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Name</th>
+            <th>Status</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+
         <tbody>
-          ${data.map(d => `
+          ${pageData.map(d => `
             <tr>
               <td><span class="id-chip">${d.id}</span></td>
               <td class="td-bold">${d.name}</td>
               <td>${activeBadge(d.active)}</td>
               <td>
                 <div class="action-cell">
-                  <button class="btn btn-ghost btn-sm btn-icon" title="Edit" onclick="openEditModal(${d.id},'${d.name.replace(/'/g,"\\'")}')">✎</button>
+                  <button class="btn btn-ghost btn-sm btn-icon"
+                    onclick="openEditModal(${d.id},'${d.name.replace(/'/g,"\\'")}')">✎</button>
+
                   ${d.active
-                    ? `<button class="btn btn-danger btn-sm btn-icon" title="Deactivate" onclick="confirmDeactivate(${d.id},'${d.name.replace(/'/g,"\\'")}')">⊗</button>`
-                    : `<button class="btn btn-success btn-sm btn-icon" title="Activate" onclick="activateDept(${d.id})">✓</button>`
-                  }
+            ? `<button class="btn btn-danger btn-sm btn-icon"
+                        onclick="confirmDeactivate(${d.id},'${d.name.replace(/'/g,"\\'")}')">⊗</button>`
+            : `<button class="btn btn-success btn-sm btn-icon"
+                        onclick="activateDept(${d.id})">✓</button>`
+    }
                 </div>
               </td>
             </tr>
@@ -116,63 +164,113 @@ function renderTable(search) {
         </tbody>
       </table>
     </div>
-    <div style="padding:12px 22px;border-top:1px solid var(--border);font-size:12px;color:var(--text-muted)">${data.length} department${data.length !== 1 ? 's' : ''}</div>
+
+    <div class="pagination">
+      <span class="pagination-info">
+        Showing ${start + 1}–${Math.min(start + pageSize, data.length)} of ${data.length}
+      </span>
+
+      <div class="pagination-controls" id="dept-pagination"></div>
+    </div>
   `;
-}
 
-function filterStatus(v) { currentFilter = v; renderTable(); }
+    buildPagination(
+            document.getElementById('dept-pagination'),
+            currentPage,
+            totalPages,
+            goPage
+    );
+  }
 
-function openAddModal() {
-  editingId = null;
-  document.getElementById('dept-modal-title').textContent = 'Add Department';
-  document.getElementById('dept-save-btn').textContent = 'Save';
-  document.getElementById('d-name').value = '';
-  openModal('dept-modal');
-}
+  // ── PAGINATION ──
+  function goPage(p) {
+    currentPage = p;
+    renderTable();
+  }
 
-function openEditModal(id, name) {
-  editingId = id;
-  document.getElementById('dept-modal-title').textContent = 'Edit Department';
-  document.getElementById('dept-save-btn').textContent = 'Update';
-  document.getElementById('d-name').value = name;
-  openModal('dept-modal');
-}
+  // ── FILTER ──
+  function filterStatus(v) {
+    currentFilter = v;
+    currentPage = 0;
+    renderTable();
+  }
 
-async function saveDept() {
-  const name = document.getElementById('d-name').value.trim();
-  if (!name) { showToast('Department name is required', 'error'); return; }
-  const btn = document.getElementById('dept-save-btn');
-  btn.textContent = 'Saving…'; btn.disabled = true;
-  try {
-    if (editingId) {
-      await api.departments.update(editingId, { name });
-      showToast('Department updated', 'success');
-    } else {
-      await api.departments.create({ name });
-      showToast('Department created', 'success');
+  // ── MODAL ──
+  function openAddModal() {
+    editingId = null;
+    document.getElementById('dept-modal-title').textContent = 'Add Department';
+    document.getElementById('dept-save-btn').textContent = 'Save';
+    document.getElementById('d-name').value = '';
+    openModal('dept-modal');
+  }
+
+  function openEditModal(id, name) {
+    editingId = id;
+    document.getElementById('dept-modal-title').textContent = 'Edit Department';
+    document.getElementById('dept-save-btn').textContent = 'Update';
+    document.getElementById('d-name').value = name;
+    openModal('dept-modal');
+  }
+
+  // ── SAVE ──
+  async function saveDept() {
+    const name = document.getElementById('d-name').value.trim();
+
+    if (!name) {
+      showToast('Department name is required', 'error');
+      return;
     }
-    closeModal('dept-modal');
-    loadDepts();
-  } catch (err) { showToast(err.message, 'error'); }
-  btn.textContent = editingId ? 'Update' : 'Save';
-  btn.disabled = false;
-}
 
-function confirmDeactivate(id, name) {
-  showConfirm('Deactivate Department', name, () => deactivateDept(id));
-}
+    const btn = document.getElementById('dept-save-btn');
+    btn.textContent = 'Saving…';
+    btn.disabled = true;
 
-async function deactivateDept(id) {
-  try { await api.departments.delete(id); showToast('Department deactivated', 'success'); loadDepts(); }
-  catch (err) { showToast(err.message, 'error'); }
-}
+    try {
+      if (editingId) {
+        await api.departments.update(editingId, { name });
+        showToast('Department updated', 'success');
+      } else {
+        await api.departments.create({ name });
+        showToast('Department created', 'success');
+      }
 
-async function activateDept(id) {
-  try { await api.departments.activate(id); showToast('Department activated', 'success'); loadDepts(); }
-  catch (err) { showToast(err.message, 'error'); }
-}
+      closeModal('dept-modal');
+      loadDepts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
 
-loadDepts();
+    btn.textContent = editingId ? 'Update' : 'Save';
+    btn.disabled = false;
+  }
+
+  // ── ACTIONS ──
+  function confirmDeactivate(id, name) {
+    showConfirm('Deactivate Department', name, () => deactivateDept(id));
+  }
+
+  async function deactivateDept(id) {
+    try {
+      await api.departments.delete(id);
+      showToast('Department deactivated', 'success');
+      loadDepts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  async function activateDept(id) {
+    try {
+      await api.departments.activate(id);
+      showToast('Department activated', 'success');
+      loadDepts();
+    } catch (err) {
+      showToast(err.message, 'error');
+    }
+  }
+
+  loadDepts();
 </script>
+
 </body>
 </html>
